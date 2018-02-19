@@ -1,0 +1,29 @@
+task:
+ - apparel
+ - baby
+ - books
+ - camera_photo
+ - dvd
+ - electronics
+ - health_personal_care
+ - imdb
+ - kitchen_housewares
+ - magazines
+ - MR
+ - music
+ - software
+ - sports_outdoors
+ - toys_games
+ - video
+
+global:
+  sequence_length: 100
+  embedding_size: 100
+  num_classes: 2
+  num_tasks: 16
+
+shared_lstm:
+  hidden_size: 128
+
+private_lstm:
+  hidden_size: 128
