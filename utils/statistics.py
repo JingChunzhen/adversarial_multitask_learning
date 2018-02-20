@@ -1,7 +1,9 @@
 import re
-
+import os
 import pandas as pd
+import tensorflow as tf
 import yaml
+from tensorflow.contrib import learn
 
 with open("../config/config.yaml", 'r') as f:
     params = yaml.load(f)
@@ -69,17 +71,87 @@ def statistic_task_sequence_length():
         line.render("../doc/{}.html".format(task))
         print("{} complete!".format(task))
 
-import tensorflow as tf
-from tensorflow.contrib import learn
 
-def get_processor():
+def vocabulary_generator():
     """
-    # TODO add new words to a existed vocabulary 
+    map words to ids 
+    # TODO:add new words to a existed vocabulary need to be tested 
     """
-    processor = learn.preprocessing.VocabularyProcessor(max_document_length)
-    processor.fit()    
+    vocabulary = None
+    for task, sequence_length in zip(params["task"], params["optimum_length"]):
+        file_in = "../data/mtl-dataset/" + task + ".task.train"
+        # TODO
+        reviews = []
+        with open(file_in, 'r', encoding="ISO-8859-1") as f:
+            for line in f.readlines():
+                line = line[1:].strip()
+                review = clean_str(line).split(' ')
+                reviews.append(review)
+
+        processor = learn.preprocessing.VocabularyProcessor(
+            max_document_length=sequence_length, vocabulary=vocabulary)
+        processor.fit(reviews)
+        vocabulary = processor.vocabulary_
+
+    processor.save("../temp/vocab")
+
+
+def convert_to_csv():
+    """
+    convert the data into csv format
+    """
+    data = []
+    for suffix in ["train", "test"]:
+        for task in params["task"]:
+            file_in = "../data/mtl-dataset/{}.task.{}".format(task, suffix)
+            with open(file_in, 'r', encoding="ISO-8859-1") as f:
+                for line in f.readlines():
+                    domain = task
+                    label = line[0]
+                    review = line[1:].strip()
+                    data.append([review, domain, label])
+    df = pd.DataFrame(data=data, columns=["review", "domain", "label"])
+    df.to_csv("../temp/data.csv")
+
+
+def load_data():
+    """
+    Returns:
+        reviews (list of list): text
+        domain (list of int): the domain of the text
+        label (list of int): sentiment polarity of the text
+    """    
+    file_in = "../temp/data.csv"
+    if not os.path.exists(file_in):
+        convert_to_csv()      
+    tasks = params["task"]
+    df = pd.read_csv(file_in)
+    reviews = [clean_str(r).split(" ") for r in df["review"].tolist()]
+    label = df["label"].tolist()
+    domain = [tasks.index(d) for d in df["domain"].tolist()]
+    return reviews, domain, label
+
+
+def batch_iter(data, batch_size, num_epochs, shuffle=True):
+    """    
+    Generates a batch iterator for a dataset.
+    """
+    data = np.array(data)
+    data_size = len(data)
+    num_batches_per_epoch = int((len(data) - 1) / batch_size) + 1
+    for epoch in range(num_epochs):
+        # Shuffle the data at each epoch
+        if shuffle:
+            shuffle_indices = np.random.permutation(np.arange(data_size))
+            shuffled_data = data[shuffle_indices]
+        else:
+            shuffled_data = data
+        for batch_num in range(num_batches_per_epoch):
+            start_index = batch_num * batch_size
+            end_index = min((batch_num + 1) * batch_size, data_size)
+            yield shuffled_data[start_index:end_index]
 
 
 if __name__ == "__main__":
-    statistic_task_sequence_length()
+    conver_to_csv()
     pass
