@@ -1,3 +1,15 @@
+global:
+  sequence_length: 100
+  embedding_size: 100
+  num_classes: 2
+  num_tasks: 16
+
+shared_lstm:
+  hidden_size: 128
+
+private_lstm:
+  hidden_size: 128
+  
 task:
  - apparel
  - baby
@@ -16,14 +28,22 @@ task:
  - toys_games
  - video
 
-global:
-  sequence_length: 100
-  embedding_size: 100
-  num_classes: 2
-  num_tasks: 16
+optimum_length:
+ - 265
+ - 446
+ - 735
+ - 566
+ - 764
+ - 503
+ - 503
+ - 802
+ - 415
+ - 246
+ - 43
+ - 447
+ - 522
+ - 327
+ - 337
+ - 340
 
-shared_lstm:
-  hidden_size: 128
 
-private_lstm:
-  hidden_size: 128
