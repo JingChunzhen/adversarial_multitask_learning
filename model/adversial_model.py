@@ -20,7 +20,8 @@ class Adversarial_Network(object):
                  embedding_matrix,
                  static,
                  rnn_hidden_size,
-                 rnn_num_layers,
+                 shared_num_layers,
+                 private_num_layers,
                  dynamic,
                  use_attention,
                  attention_size,
@@ -35,7 +36,7 @@ class Adversarial_Network(object):
             with tf.variable_scope("{}-rnn".format(task)):
                 rnn = RNN(sequence_length,
                           rnn_hidden_size,
-                          rnn_num_layers,
+                          private_num_layers,
                           dynamic=True,
                           use_attention=True,
                           attention_size=attention_size)
@@ -44,7 +45,7 @@ class Adversarial_Network(object):
         with tf.variable_scope("shared"):
             self.shared_model = RNN(sequence_length,
                                     rnn_hidden_size,
-                                    rnn_num_layers,
+                                    shared_num_layers,
                                     dynamic=True,
                                     use_attention=True,
                                     attention_size=attention_size)
@@ -65,10 +66,15 @@ class Adversarial_Network(object):
                                      hidden_size=mlp_hidden_size,
                                      num_classes=len(params["task"]))                                    
         self.sequence_length = sequence_length
+        self.adv_loss = None
+        self.diff_loss = None
+        self.task_loss = None
+        self.task_accuracy = None
+        self.discriminator_accuracy = None
 
     def process(self, task):
         """
-        Args:
+        Arg:
             task (int): task indice
         Returns:
             adv_loss (float): adversarial network loss 
@@ -125,23 +131,23 @@ class Adversarial_Network(object):
         with tf.name_scope("loss"):
             adv_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
                 labels=task_label, logits=d)
-            adv_loss = tf.reduce_mean(adv_losses)
-            diff_loss = tf.norm(tf.matmul(s, p, transpose_a=True), ord=2) # TODO
+            self.adv_loss = tf.reduce_mean(adv_losses)
+            self.diff_loss = tf.norm(tf.matmul(s, p, transpose_a=True), ord=2) # TODO
             task_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
                 labels=self.input_y, logits=scores)
-            task_loss = tf.reduce_mean(task_losses)
+            self.task_loss = tf.reduce_mean(task_losses)
 
         with tf.name_scope("task-accuracy"):        
             predictions = tf.argmax(scores, 1, name="predictions")
             correct_predictions = tf.equal(
                 predictions, tf.argmax(self.input_y, 1))
-            task_accuracy = tf.reduce_mean(
+            self.task_accuracy = tf.reduce_mean(
                 tf.cast(correct_predictions, "float"), name="accuracy")
         
         with tf.name_scope("discriminator-accuracy"):            
             predictions = tf.argmax(d, 1, name="predictions")            
             correct_predictions = tf.equal(
                 predictions, tf.cast(task_label, tf.int32))
-            discriminator_accuracy = tf.reduce_mean(
+            self.discriminator_accuracy = tf.reduce_mean(
                 tf.cast(correct_predictions, "float"), name="accuracy")
-        return adv_loss, diff_loss, task_loss, accuracy
+        

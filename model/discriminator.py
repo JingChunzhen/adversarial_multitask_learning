@@ -26,7 +26,7 @@ class MLP(object):
             y (tensor): shape: (batch_size, num_classes)
                 num_classes == number of tasks
         Returns:
-            loss (float), accuracy (float)
+            scores (float): shape (batch_size, num_tasks)
         """
         with tf.name_scope("fully-connected-layer1"):            
             self.l2_loss += tf.nn.l2_loss(self.W1)
@@ -40,18 +40,4 @@ class MLP(object):
             scores = tf.nn.xw_plus_b(scores, self.W2, self.b2, name="scores2")
             # predictions = tf.argmax(scores, 1, name="predictions")
         return scores
-        
-        """
-        # Calculate mean cross-entropy loss
-        with tf.name_scope("loss"):
-            losses = tf.nn.softmax_cross_entropy_with_logits(
-                logits=self.scores, labels=self.input_y)
-            loss = tf.reduce_mean(losses) + self.l2_reg_lambda * l2_loss
-
-        with tf.name_scope("accuracy"):
-            correct_predictions = tf.equal(
-                predictions, tf.argmax(y, 1))
-            accuracy = tf.reduce_mean(
-                tf.cast(correct_predictions, "float"), name="accuracy")
-        return loss, accuracy
-        """
+               

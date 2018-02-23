@@ -3,12 +3,18 @@ global:
   embedding_size: 100
   num_classes: 2
   num_tasks: 16
+  static: False
+  rnn_hidden_size: 128
+  mlp_hidden_size: 200
+  dynamic: True
+  use_attention: False
+  attention_size: 50
 
-shared_lstm:
-  hidden_size: 128
-
-private_lstm:
-  hidden_size: 128
+shared_model:
+  num_layers: 1  
+  
+private_model:
+  num_layers: 1
   
 task:
  - apparel
