@@ -64,7 +64,7 @@ class RNN(object):
         """
         x = tf.unstack(x, self.sequence_length, axis=1)
         # get list (length == sequence_length) of tensors with shape: batch_size, embedding_size
-        if dynamic:
+        if self.dynamic:
             with tf.name_scope("dynamic-rnn-with-{}-layers".format(self.num_layers)):
                 outputs, _, _ = tf.nn.static_bidirectional_rnn(
                     inputs=x,
@@ -86,7 +86,7 @@ class RNN(object):
                     outputs, [-1, self.hidden_size * 2]), index)
                 # shape: batch_size, hidden_size * 2
         else:
-            if use_attention:
+            if self.use_attention:
                 with tf.name_scope("rnn-based-attention-with-{}-layers".format(self.num_layers)):
                     outputs, _, _ = tf.nn.static_bidirectional_rnn(
                         inputs=x,

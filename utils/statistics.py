@@ -98,6 +98,7 @@ def vocabulary_generator():
 
 def convert_to_csv():
     """
+    deprecated
     convert the data into csv format
     """
     data = []
@@ -114,16 +115,17 @@ def convert_to_csv():
     df.to_csv("../temp/data.csv")
 
 
-def load_data():
+def load_data_v1():
     """
+    deprecated
     Returns:
         reviews (list of list): text
         domain (list of int): the domain of the text
         label (list of int): sentiment polarity of the text
-    """    
+    """
     file_in = "../temp/data.csv"
     if not os.path.exists(file_in):
-        convert_to_csv()      
+        convert_to_csv()
     tasks = params["task"]
     df = pd.read_csv(file_in)
     reviews = [clean_str(r).split(" ") for r in df["review"].tolist()]
@@ -132,8 +134,9 @@ def load_data():
     return reviews, domain, label
 
 
-def batch_iter(data, batch_size, num_epochs, shuffle=True):
+def batch_iter_v1(data, batch_size, num_epochs, shuffle=True):
     """    
+    deprecated
     Generates a batch iterator for a dataset.
     """
     data = np.array(data)
@@ -151,8 +154,69 @@ def batch_iter(data, batch_size, num_epochs, shuffle=True):
             end_index = min((batch_num + 1) * batch_size, data_size)
             yield shuffled_data[start_index:end_index]
 
-def batch_iter():
-    pass
+
+def load_data():
+    """
+    Returns:
+        data (list), label (list)
+    """
+    data = []
+    label = []
+    for task in params["task"]:
+        file_in = "../data/mtl-dataset/{}.task.train".format(task)
+        reviews = []
+        polarities = []
+        with open(file_in, "r", encoding='ISO-8859-1') as f:
+            for line in f.readlines():
+                line = clean_str(line)
+                polarities.append([1, 0] if int(line[0]) == 0 else [0, 1])
+                review = line[1:].strip()
+                review = review.split(" ")
+                reviews.append(review)
+        data.append(reviews)
+        label.append(polarities)
+    return data, label
+
+
+def _end_batch_iter(epoch_count):
+    flag = True
+    for i in range(len(epoch_count)):
+        if self.epoch_count[i] != epochs:
+            flag = False
+            break
+    return flag
+
+
+def batch_iter(data, batch_size, epochs, shuffle):
+    """
+    specific task data and label are chosen randomly, \
+    each batch of data come from the same task, but different sentiment polarity
+    """
+    start_indices = [0] * len(params["task"])
+    epoch_count = [0] * len(params["task"])
+    while True:
+        if _end_batch_iter():
+            break
+        else:
+            while True:
+                task = random.randint(0, len(params["task"]) - 1)
+                if epoch_count[task] != epochs:
+                    break
+            data_size = len(data[task])
+            start_index = start_indices[task]
+            end_index = min(start_index + batch_size, data_size)
+            start_indices[task] = end_index if end_index != data_size else 0
+            epoch_count[task] += (0 if end_index != data_size else 1)
+
+            if end_index == data_size and epoch_count[task] < epochs and shuffle:
+                shuffled_indices = np.random.permutation(
+                    np.range(data_size))  # TODO
+                data[task] = data[task][shuffled_indices]
+                epoch_count[task] += 1
+            elif end_index == data_size:
+                epoch_count[task] += 1
+
+            yield task, data[task][start_index: end_index]
 
 
 if __name__ == "__main__":

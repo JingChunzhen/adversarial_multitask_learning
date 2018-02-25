@@ -9,6 +9,9 @@ global:
   dynamic: True
   use_attention: False
   attention_size: 50
+  batch_size: 16
+  learning_rate: 0.00001
+  epochs: 10
 
 shared_model:
   num_layers: 1  
