@@ -1,7 +1,7 @@
 import tensorflow as tf
 import yaml
-from lstm_model import RNN
-from discriminator import MLP
+from rnn_model import RNN
+from mlp_model import MLP
 
 with open("../config/config.yaml", "r") as f:
     params = yaml.load(f)

@@ -6,7 +6,7 @@ import random
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import learn
-from model.adversial_model import Adversarial_Model
+from model.adversarial_model import Adversarial_Model
 from utils.data_loader import load_data, batch_iter
 
 with open("../config/config.yaml", "rb") as f:
@@ -15,7 +15,9 @@ with open("../config/config.yaml", "rb") as f:
 
 class EVAL(object):
     """
-    to be continued 
+    # TODO add visualization of training process 
+    Adversarial Network Training
+    cf. https://arxiv.org/abs/1704.05742
     """
 
     def __init__(self, sequence_length):
