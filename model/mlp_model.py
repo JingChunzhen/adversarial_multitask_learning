@@ -3,7 +3,7 @@ import tensorflow as tf
 
 class MLP(object):
 
-    def __init__(self, sequence_length, num_classes, hidden_size, l2_reg_lambda):
+    def __init__(self, sequence_length, num_classes, hidden_size):
         '''
         labels: task label 
         '''        
@@ -16,9 +16,10 @@ class MLP(object):
         self.W2 = tf.Variable(tf.truncated_normal(
             [hidden_size, num_classes], stddev=0.1), name="W2")
         self.b2 = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b2")
-        self.l2_reg_lambda = l2_reg_lambda
+        #self.l2_reg_lambda = l2_reg_lambda
+        self.l2_loss = None
 
-    def process(self, x)
+    def process(self, x):
         """
         Args:
             x (tensor): the shared model output with shape (batch_size, sequence_length)

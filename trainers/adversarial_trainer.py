@@ -6,8 +6,9 @@ import random
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import learn
-from model.adversarial_model import Adversarial_Model
+from model.adversarial_model import Adversarial_Network
 from utils.data_loader import load_data, batch_iter
+from itertools import chain
 
 with open("../config/config.yaml", "rb") as f:
     params = yaml.load(f)
@@ -66,21 +67,24 @@ class EVAL(object):
         """
         embedding_matrix = list(chain.from_iterable(
             self.embedding_matrix)) if self.embedding_matrix else None
-        with tf.Graph().as_default():
-            instance = Adversarial_Model(sequence_length=params["global"]["sequence_length"],
-                                         num_classes=params["global"]["num_classes"],
-                                         embedding_size=params["global"]["embedding_size"],
-                                         vocab_size=len(
-                                             self.processor.vocabulary_),
-                                         embedding_matrix=embedding_matrix,
-                                         static=params["global"]["static"],
-                                         rnn_hidden_size=params["global"]["rnn_hidden_size"],
-                                         shared_num_layers=params["shared_model"]["num_layer"],
-                                         private_num_layers=params["private_model"]["num_layer"]
-                                         dynamic=params["global"]["dynamic"],
-                                         use_attention=params["global"]["use_attention"],
-                                         attention_size=params["global"]["attention_size"],
-                                         mlp_hidden_size=params["global"]["hidden_size"])
+        # task_indice = tf.placeholder(tf.int32, name="task_indice")
+        # task = 
+        with tf.Graph().as_default():            
+            instance = Adversarial_Network(sequence_length=params["global"]["sequence_length"],
+                                           num_classes=params["global"]["num_classes"],
+                                           embedding_size=params["global"]["embedding_size"],
+                                           vocab_size=len(
+                                               self.processor.vocabulary_),
+                                           embedding_matrix=embedding_matrix,
+                                           static=params["global"]["static"],
+                                           rnn_hidden_size=params["global"]["rnn_hidden_size"],
+                                           shared_num_layers=params["shared_model"]["num_layers"],
+                                           private_num_layers=params["private_model"]["num_layers"],
+                                           dynamic=params["global"]["dynamic"],
+                                           use_attention=params["global"]["use_attention"],
+                                           attention_size=params["global"]["attention_size"],
+                                           mlp_hidden_size=params["global"]["mlp_hidden_size"])            
+
             global_step = tf.Variable(0, trainable=False)
             init = tf.global_variables_initializer()
 
@@ -93,24 +97,26 @@ class EVAL(object):
 
             discriminator_optimizer = tf.train.AdamOptimizer(learning_rate)
             task_optimizer = tf.train.AdamOptimizer(learning_rate)
-            shared_optimizer = tf.train.AdamOptimizer(learning_rate)
-
-            discriminator_vars = tf.get_collection(
-                tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
-            task_vars = tf.get_collection(
-                tf.GraphKeys.TRAINABLE_VARIABLES, scope="{}-rnn".format(params["task"][task]))
-            shared_vars = tf.get_collection(
-                tf.GraphKeys.TRAINABLE_VARIABLES, scope="shared")
-
-            discriminator_train_op = discriminator_optimizer.minimize(
-                adv_loss, var_list=discriminator_vars)
-            task_train_op = task_optimizer.minimize(
-                task_loss+diff_loss, var_list=task_vars.extend(shared_vars))  # TODO
-            shared_train_op = shared_optimizer.minimize(
-                -1 * adv_loss, var_list=shared_vars)
+            shared_optimizer = tf.train.AdamOptimizer(learning_rate)            
 
             with tf.Session() as sess:
                 def train_step(task, x_batch, y_batch):
+                    instance.process(task)
+                    discriminator_vars = tf.get_collection(
+                        tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
+                    task_vars = tf.get_collection(
+                        tf.GraphKeys.TRAINABLE_VARIABLES, scope="{}-rnn".format(params["task"][task]))  # TODO
+                    # local variable "task" referenced before assignment
+                    shared_vars = tf.get_collection(
+                        tf.GraphKeys.TRAINABLE_VARIABLES, scope="shared")
+
+                    discriminator_train_op = discriminator_optimizer.minimize(
+                        adv_loss, var_list=discriminator_vars)
+                    task_train_op = task_optimizer.minimize(
+                        task_loss + diff_loss, var_list=task_vars.extend(shared_vars))  # TODO
+                    shared_train_op = shared_optimizer.minimize(
+                        -1 * adv_loss, var_list=shared_vars)
+
                     feed_dict = {
                         instance.input_x: x_batch,
                         instance.input_y: y_batch
@@ -130,7 +136,8 @@ class EVAL(object):
                     )
                     return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_
 
-                def train_step(task, x_batch, y_batch):
+                def dev_step(task, x_batch, y_batch):
+                    instance.process(task)
                     feed_dict = {
                         instance.input_x: x_batch,
                         instance.input_y: y_batch
@@ -149,9 +156,9 @@ class EVAL(object):
 
                 sess.run(init)
 
-                for task, batch in batch_iter(list(zip(self.train_data, self.train_label)), batch_size, epochs):
-                    x_batch, y_batch = zip(*batch)
-                    instance.process(task)
+                for task, batch in batch_iter(list(zip(self.train_data, self.train_label)), batch_size, epochs, shuffle=False):
+                    #sess.run(task_indice, feed_dict={task_indice: task})
+                    x_batch, y_batch = zip(*batch)  # TODO too many value to unpack                     
                     current_step,
                     diff_loss_,
                     adv_loss_,

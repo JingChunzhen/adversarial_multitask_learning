@@ -85,7 +85,7 @@ def vocabulary_generator():
         with open(file_in, 'r', encoding="ISO-8859-1") as f:
             for line in f.readlines():
                 line = line[1:].strip()
-                review = clean_str(line).split(' ')
+                review = clean_str(line)
                 reviews.append(review)
 
         processor = learn.preprocessing.VocabularyProcessor(
@@ -220,5 +220,6 @@ def batch_iter(data, batch_size, epochs, shuffle):
 
 
 if __name__ == "__main__":
-    conver_to_csv()
+    #conver_to_csv()
+    vocabulary_generator()
     pass

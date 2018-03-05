@@ -1,4 +1,5 @@
 import os
+import random
 import re
 
 import numpy as np
@@ -57,10 +58,10 @@ def load_data(train_or_test):
     return data, label
 
 
-def _end_batch_iter(epoch_count):
+def _end_batch_iter(epoch_count, epochs):
     flag = True
     for i in range(len(epoch_count)):
-        if self.epoch_count[i] != epochs:
+        if epoch_count[i] != epochs:
             flag = False
             break
     return flag
@@ -68,13 +69,14 @@ def _end_batch_iter(epoch_count):
 
 def batch_iter(data, batch_size, epochs, shuffle):
     """
+    # TODO
     specific task data and label are chosen randomly, \
     each batch of data come from the same task, but different sentiment polarity
     """
     start_indices = [0] * len(params["task"])
     epoch_count = [0] * len(params["task"])
     while True:
-        if _end_batch_iter():
+        if _end_batch_iter(epoch_count, epochs):
             break
         else:
             while True:

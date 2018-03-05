@@ -8,8 +8,8 @@ from model.attention import attention
 class RNN(object):
 
     def __init__(self, sequence_length, 
-                 hidden_size, num_layers, input_keep_prob=1, output_keep_prob=1, dynamic, use_attention,
-                 attention_size):
+                 hidden_size, num_layers, dynamic, use_attention,
+                 attention_size, input_keep_prob=1, output_keep_prob=1):
         
         self.sequence_length = sequence_length
         self.hidden_size = hidden_size
@@ -17,6 +17,8 @@ class RNN(object):
         self.dynamic = dynamic
         self.use_attention = use_attention
         self.attention_size = attention_size
+        self.input_keep_prob = input_keep_prob
+        self.output_keep_prob = output_keep_prob
                 
         #l2_loss = tf.constant(0.0)
                         

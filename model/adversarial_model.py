@@ -1,7 +1,9 @@
 import tensorflow as tf
+import sys
+sys.path.append("..")
 import yaml
-from rnn_model import RNN
-from mlp_model import MLP
+from model.rnn_model import RNN
+from model.mlp_model import MLP
 
 with open("../config/config.yaml", "r") as f:
     params = yaml.load(f)
@@ -30,10 +32,11 @@ class Adversarial_Network(object):
             tf.int32, [None, sequence_length], name="x")
         self.input_y = tf.placeholder(
             tf.float32, [None, num_classes], name="y")
+        self.task = tf.placeholder(tf.int32, name="task") # TODO need to be tested 
 
         self.private_model = []
-        for task in params["task"]:
-            with tf.variable_scope("{}-rnn".format(task)):
+        for task_name in params["task"]:
+            with tf.variable_scope("{}-rnn".format(task_name)):
                 rnn = RNN(sequence_length,
                           rnn_hidden_size,
                           private_num_layers,
@@ -71,6 +74,16 @@ class Adversarial_Network(object):
         self.task_loss = None
         self.task_accuracy = None
         self.discriminator_accuracy = None
+        #self.task = None
+    
+    def task_indice(self, task_indice):
+        """
+        get int type indice 
+        """
+        feed_dict = {self.task: task_indice}
+        with tf.Session() as sess:
+            task_indice = sess.run(task, feed_dict=feed_dict)
+        return task_indice        
 
     def process(self, task):
         """
@@ -85,8 +98,7 @@ class Adversarial_Network(object):
         # trim the sequence to a fitted length according to specific task
         # how to update specific model -> tensorflow example GAN
         # use multi-thread to process shared and private model simultaneously
-        # and test the function
-
+        # and test the function        
         l = [0] * len(params["task"])
         l[task] = 1
         task_label = tf.constant(l, dtype=tf.float32)
@@ -117,24 +129,24 @@ class Adversarial_Network(object):
             d = self.discriminator.process(s)
             # batch_size, num_tasks
 
-        with tf.name_scope("fully-connected-layer"):
-            sp = tf.concat([s, p], axis=1)  
-            # batch_size, rnn_hidden_size * 4
-            W = tf.Variable(tf.truncated_normal(
-                [rnn_hidden_size * 2, num_classes], stddev=0.1), name="W")
-            b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
-            l2_loss += tf.nn.l2_loss(W)
-            l2_loss += tf.nn.l2_loss(b)
-            scores = tf.nn.xw_plus_b(
-                sp, W, b, name="scores")  # TODO             
+        # with tf.name_scope("fully-connected-layer"):
+        #     W = tf.Variable(tf.truncated_normal(
+        #         [rnn_hidden_size * 2, num_classes], stddev=0.1), name="W")
+        #     b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
+        #     l2_loss += tf.nn.l2_loss(W)
+        #     l2_loss += tf.nn.l2_loss(b)
+        #     scores = tf.nn.xw_plus_b(
+        #         sp, W, b, name="scores")               
 
         with tf.name_scope("loss"):
+            sp = tf.concat([s, p], axis=1)  
+            # batch_size, rnn_hidden_size * 4
             adv_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
                 labels=task_label, logits=d)
             self.adv_loss = tf.reduce_mean(adv_losses)
             self.diff_loss = tf.norm(tf.matmul(s, p, transpose_a=True), ord=2) # TODO
             task_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
-                labels=self.input_y, logits=scores)
+                labels=self.input_y, logits=sp)
             self.task_loss = tf.reduce_mean(task_losses)
 
         with tf.name_scope("task-accuracy"):        
