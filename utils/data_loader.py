@@ -67,7 +67,7 @@ def _end_batch_iter(epoch_count, epochs):
     return flag
 
 
-def batch_iter(data, batch_size, epochs, shuffle):
+def batch_iter(corpus, label, batch_size, epochs, shuffle):
     """
     # TODO
     specific task data and label are chosen randomly, \
@@ -75,6 +75,10 @@ def batch_iter(data, batch_size, epochs, shuffle):
     """
     start_indices = [0] * len(params["task"])
     epoch_count = [0] * len(params["task"])
+    data = []
+    for i in range(len(params["task"])):
+        array = np.array(list(zip(corpus[i], label[i])))
+        data.append(array)
     while True:
         if _end_batch_iter(epoch_count, epochs):
             break
@@ -98,3 +102,4 @@ def batch_iter(data, batch_size, epochs, shuffle):
                 epoch_count[task] += 1
 
             yield task, data[task][start_index: end_index]
+
