@@ -173,15 +173,27 @@ def test_cond():
 
 def test_cond_for():
     indice = tf.placeholder(tf.int32)
-    def fn():
-        return 0 
+    a = tf.constant([2,1,5,3,3,2,1,4,6,2,1], dtype=tf.int32)
+    b = tf.constant([0]*11, dtype=tf.int32)
+    #p = tf.Variable([0,1,0,0,1,0,1,0,1,0,1], dtype=tf.int32)
+    def fn1():
+        #tf.assign(p, a)
+        return tf.constant([0,0,0,0,0,0,0,0,0,0,0], dtype=tf.int32)
+    def fn2():
+        #p = tf.assign(p, a)
+        return a
+    l = []
     for i in range(10):
-        p = tf.cond(tf.equal(indice, 5), lambda: 10, fn)
-        if p != 0:
-            break
+        temp = tf.cond(tf.equal(indice, i), lambda: a, lambda: b)
+        l.append(temp)
+        
+    p = tf.gather(l, indice)      
     
+    init = tf.global_variables_initializer()
     with tf.Session() as sess:
-        res = sess.run(p, feed_dict={indice: 5})
+        sess.run(init)
+        l_, res = sess.run([l, p], feed_dict={indice: 5})
+        print(l_)
         print(res)
          
     

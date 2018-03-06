@@ -13,12 +13,10 @@ class Adversarial_Network(object):
     """
     a batch of data come from the same task
     TODO
-    trim the sequence to a fitted length according to specific task
-    how to update specific model -> tensorflow example GAN
-    use multi-thread to process shared and private model simultaneously
-    and test the function       
+    trim the sequence to a fitted length according to specific task    
+    use multi-thread to process shared and private model simultaneously    
     Attributes:
-        adv_loss (float): adversarial network loss 
+        adv_loss (float): domain classification loss on adversarial network 
         task_loss (float): sentiment classification loss on specific task
         diff_loss (float): overlapping features between shared and private model
     """
@@ -53,7 +51,7 @@ class Adversarial_Network(object):
                           dynamic=True,
                           use_attention=True,
                           attention_size=attention_size)
-            self.private_model.append(rnn)  # TODO need to be tested            
+            self.private_model.append(rnn)  # TODO need to be tested
 
         with tf.variable_scope("shared"):
             self.shared_model = RNN(sequence_length,
@@ -100,23 +98,28 @@ class Adversarial_Network(object):
             s = self.shared_model.process(self.embedded_chars, seq_len)
             # batch_size, rnn_hidden_size * 2
 
-        with tf.name_scope("private-model-processing"):
-            # selected_model = tf.gather(self.private_model, self.task) # TODO
-            private_outputs = []
-            for model in self.private_model:
-                output = model.process(self.embedded_chars, seq_len) # 
-                # TODO ValueError: Variable bidirectional_rnn/fw/gru_cell/gates/kernel already exists, disallowed. \
-                # Did you mean to set reuse=True or reuse=tf.AUTO_REUSE in VarScope? 
-                private_outputs.append(output)
-            # p = selected_model.process(self.embedded_chars, seq_len)
-            p = tf.gather(private_outputs, task)
-            # batch_size, rnn_hidden_size * 2
+        # with tf.name_scope("private-model-processing"):
+        #     # selected_model = tf.gather(self.private_model, self.task) # didn't work
+        #     private_outputs = []
+        #     for model in self.private_model:
+        #         output = model.process(self.embedded_chars, seq_len)
+        #         # TODO ValueError: Variable bidirectional_rnn/fw/gru_cell/gates/kernel already exists, disallowed. \
+        #         # Did you mean to set reuse=True or reuse=tf.AUTO_REUSE in VarScope?
+        #         private_outputs.append(output)
+        #     # p = selected_model.process(self.embedded_chars, seq_len)
+        #     p = tf.gather(private_outputs, task)
+        #     # batch_size, rnn_hidden_size * 2
 
         with tf.name_scope("private-model-processing"):
+            useless = tf.constant(
+                [0]*2*rnn_hidden_size, dtype=tf.float32)
+            l = []
             for i in range(len(params["task"])):
-                p = tf.cond(tf.equal(task, i), lambda: self.private_model[i].process(self.embedded_chars, seq_len), lambda: 0) 
-                               
-               
+                temp = tf.cond(tf.equal(task, i), lambda: self.private_model[i].process(
+                    self.embedded_chars, seq_len), lambda: useless)
+                l.append(temp)
+            p = tf.gather(l, task)
+            # batch_size, rnn_hidden_size * 2
 
         with tf.name_scope("discriminator-processing"):
             d = self.discriminator.process(s)
