@@ -44,7 +44,7 @@ class Adversarial_Network(object):
 
         self.private_model = []
         for task_name in params["task"]:
-            with tf.variable_scope("{}-rnn".format(task_name)):
+            with tf.variable_scope("{}-rnn".format(task_name), reuse=tf.AUTO_REUSE):
                 rnn = RNN(sequence_length,
                           rnn_hidden_size,
                           private_num_layers,
@@ -53,7 +53,7 @@ class Adversarial_Network(object):
                           attention_size=attention_size)
             self.private_model.append(rnn)  # TODO need to be tested
 
-        with tf.variable_scope("shared"):
+        with tf.variable_scope("shared", reuse=tf.AUTO_REUSE):
             self.shared_model = RNN(sequence_length,
                                     rnn_hidden_size,
                                     shared_num_layers,
@@ -61,16 +61,18 @@ class Adversarial_Network(object):
                                     use_attention=True,
                                     attention_size=attention_size)
 
-            if embedding_matrix:
-                self.W = tf.get_variable(shape=[vocab_size, embedding_size],
-                                         initializer=tf.constant_initializer(
-                                             embedding_matrix),
-                                         name='W',
-                                         trainable=not static)
-            else:
-                self.W = tf.Variable(
-                    tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
-                    name="W")
+        # attempting to use uninitialized value beta2_power_2 if with tf.variable_scope("shared")
+        # if not in this with, it says no variables to optimize 
+        if embedding_matrix:
+            self.W = tf.get_variable(shape=[vocab_size, embedding_size],
+                                        initializer=tf.constant_initializer(
+                                            embedding_matrix),
+                                        name='W',
+                                        trainable=not static)
+        else:
+            self.W = tf.Variable( 
+                tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
+                name="W")
 
         with tf.variable_scope("discriminator"):
             self.discriminator = MLP(sequence_length=rnn_hidden_size * 2,
@@ -115,10 +117,11 @@ class Adversarial_Network(object):
                 [0]*2*rnn_hidden_size, dtype=tf.float32)
             l = []
             for i in range(len(params["task"])):
-                temp = tf.cond(tf.equal(task, i), lambda: self.private_model[i].process(
+                temp = tf.cond(tf.equal(self.task, i), lambda: self.private_model[i].process(
                     self.embedded_chars, seq_len), lambda: useless)
+                # set reuse=True or reuse=tf.AUTO_REUSE
                 l.append(temp)
-            p = tf.gather(l, task)
+            p = tf.gather(l, self.task)
             # batch_size, rnn_hidden_size * 2
 
         with tf.name_scope("discriminator-processing"):
@@ -128,17 +131,17 @@ class Adversarial_Network(object):
         with tf.name_scope("loss"):
             sp = tf.concat([s, p], axis=1)
             # batch_size, rnn_hidden_size * 4
-            adv_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
+            adv_losses = tf.nn.softmax_cross_entropy_with_logits(
                 labels=task_label, logits=d)
             self.adv_loss = tf.reduce_mean(adv_losses)
             self.diff_loss = tf.norm(
                 tf.matmul(s, p, transpose_a=True), ord=2)  # TODO
-            task_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
+            task_losses = tf.nn.softmax_cross_entropy_with_logits(
                 labels=self.input_y, logits=sp)
             self.task_loss = tf.reduce_mean(task_losses)
 
         with tf.name_scope("task-accuracy"):
-            predictions = tf.argmax(scores, 1, name="predictions")
+            predictions = tf.argmax(sp, 1, name="predictions")
             correct_predictions = tf.equal(
                 predictions, tf.argmax(self.input_y, 1))
             self.task_accuracy = tf.reduce_mean(

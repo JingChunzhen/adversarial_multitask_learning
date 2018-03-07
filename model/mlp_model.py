@@ -17,8 +17,7 @@ class MLP(object):
             [hidden_size, num_classes], stddev=0.1), name="W2")
         self.b2 = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b2")
         #self.l2_reg_lambda = l2_reg_lambda
-        self.l2_loss = None
-
+                
     def process(self, x):
         """
         Args:

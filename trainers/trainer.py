@@ -15,9 +15,8 @@ with open("../config/config.yaml", "rb") as f:
 
 
 class EVAL(object):
-    """
-    # TODO add visualization of training process 
-    Adversarial Network Training
+    """    
+    This is a training without adversarial network
     cf. https://arxiv.org/abs/1704.05742
     """
 
@@ -66,14 +65,14 @@ class EVAL(object):
         """
         """
         embedding_matrix = list(chain.from_iterable(
-            self.embedding_matrix)) if self.embedding_matrix else None       
+            self.embedding_matrix)) if self.embedding_matrix else None
         with tf.Graph().as_default():
             instance = Adversarial_Network(sequence_length=params["global"]["sequence_length"],
                                            num_classes=params["global"]["num_classes"],
                                            embedding_size=params["global"]["embedding_size"],
                                            vocab_size=len(
                                                self.processor.vocabulary_),
-                                           embedding_matrix=embedding_matrix,
+                                           embedding_matrix=None,
                                            static=params["global"]["static"],
                                            rnn_hidden_size=params["global"]["rnn_hidden_size"],
                                            shared_num_layers=params["shared_model"]["num_layers"],
@@ -86,27 +85,28 @@ class EVAL(object):
             global_step = tf.Variable(0, trainable=False)
             init = tf.global_variables_initializer()
 
-            adv_loss = instance.adv_loss  # TODO
+            # adv_loss = instance.adv_loss  # TODO
             diff_loss = instance.diff_loss
             task_loss = instance.task_loss
 
-            discriminator_accuracy = instance.discriminator_accuracy
+            # discriminator_accuracy = instance.discriminator_accuracy
             task_accuracy = instance.task_accuracy
 
-            discriminator_optimizer = tf.train.AdamOptimizer(learning_rate)
+            # discriminator_optimizer = tf.train.AdamOptimizer(learning_rate)
             task_optimizer = tf.train.AdamOptimizer(learning_rate)
-            shared_optimizer = tf.train.AdamOptimizer(learning_rate)
+            # shared_optimizer = tf.train.AdamOptimizer(learning_rate)
 
-            discriminator_vars = tf.get_collection(
-                tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
-            shared_vars = tf.get_collection(
-                tf.GraphKeys.TRAINABLE_VARIABLES, scope="shared")
+            # discriminator_vars = tf.get_collection(
+            #     tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
+            # shared_vars = tf.get_collection(
+            #     tf.GraphKeys.TRAINABLE_VARIABLES, scope="shared")
 
-            task_train_op = task_optimizer.minimize(task_loss + diff_loss, global_step=global_step)
-            discriminator_train_op = discriminator_optimizer.minimize(
-                adv_loss, var_list=discriminator_vars, global_step=global_step)
-            shared_train_op = shared_optimizer.minimize(
-                -1 * adv_loss, var_list=shared_vars, global_step=global_step) # No varibales to optimize
+            task_train_op = task_optimizer.minimize(
+                task_loss + diff_loss, global_step=global_step)
+            # discriminator_train_op = discriminator_optimizer.minimize(
+            #     adv_loss, var_list=discriminator_vars, global_step=global_step)
+            # shared_train_op = shared_optimizer.minimize(
+            #     -1 * adv_loss, var_list=shared_vars, global_step=global_step) # No varibales to optimize
 
             with tf.Session() as sess:
                 sess.run(init)
@@ -116,50 +116,48 @@ class EVAL(object):
                         instance.input_x: x_batch,
                         instance.input_y: y_batch
                     }
-                    step, _, _, _, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
+                    step, _, diff_loss_, task_loss_, task_acc_ = sess.run(
                         [
                             global_step,
-                            discriminator_train_op,
-                            shared_train_op,
                             task_train_op,
                             diff_loss,
-                            adv_loss,
                             task_loss,
-                            discriminator_accuracy,
                             task_accuracy
                         ], feed_dict=feed_dict
                     )
-                    return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_
+                    return step, diff_loss_, task_loss_, task_acc_
 
-                def dev_step(task, x_batch, y_batch):
-                    feed_dict = {
-                        instance.task: task,
-                        instance.input_x: x_batch,
-                        instance.input_y: y_batch
-                    }
-                    step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
-                        [
-                            global_step,
-                            diff_loss,
-                            adv_loss,
-                            task_loss,
-                            discriminator_accuracy,
-                            task_accuracy
-                        ], feed_dict=feed_dict
-                    )
-                    return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_                
+                # def dev_step(task, x_batch, y_batch):
+                #     feed_dict = {
+                #         instance.task: task,
+                #         instance.input_x: x_batch,
+                #         instance.input_y: y_batch
+                #     }
+                #     step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
+                #         [
+                #             global_step,
+                #             diff_loss,
+                #             adv_loss,
+                #             task_loss,
+                #             discriminator_accuracy,
+                #             task_accuracy
+                #         ], feed_dict=feed_dict
+                #     )
+                #     return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_                
 
-                for task, batch in batch_iter(self.train_data, self.train_label, batch_size, epochs, shuffle=False):                    
+                for task, batch in batch_iter(self.train_data, self.train_label, batch_size, epochs, shuffle=False):                               
                     x_batch, y_batch = zip(*batch)
-                    current_step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = train_step(
+                    current_step, diff_loss_, task_loss_, task_acc_ = train_step(
                         task, x_batch, y_batch)
 
-                    print("step: {}, adversarial loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, \
-                    task accuracy: {:.2f}".format(current_step,
-                                                  adv_loss_,
-                                                  task_loss_,
-                                                  dis_acc_,
-                                                  task_acc_))
+                    # print("step: {}, adversarial loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, \
+                    # task accuracy: {:.2f}".format(current_step,
+                    #                               adv_loss_,
+                    #                               task_loss_,
+                    #                               dis_acc_,
+                    #                               task_acc_))
+                    print("step: {}, task loss: {:.5f}, task acc: {:.2f}".format(
+                        current_step, task_loss_, task_acc_))
                     if current_step % evaluate_every == 0:
                         """
                         test transfer effect

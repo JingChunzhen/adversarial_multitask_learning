@@ -1,0 +1,86 @@
+	 [[Node: W/Adam/read = Identity[T=DT_FLOAT, _class=["loc:@W"], _device="/job:localhost/replica:0/task:0/device:GPU:0"](W/Adam)]]
+2018-03-07 18:23:13.065202: W tensorflow/core/framework/op_kernel.cc:1192] Failed precondition: Attempting to use uninitialized value W/Adam
+	 [[Node: W/Adam/read = Identity[T=DT_FLOAT, _class=["loc:@W"], _device="/job:localhost/replica:0/task:0/device:GPU:0"](W/Adam)]]
+2018-03-07 18:23:13.065224: W tensorflow/core/framework/op_kernel.cc:1192] Failed precondition: Attempting to use uninitialized value W/Adam
+	 [[Node: W/Adam/read = Identity[T=DT_FLOAT, _class=["loc:@W"], _device="/job:localhost/replica:0/task:0/device:GPU:0"](W/Adam)]]
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/client/session.py", line 1323, in _do_call
+    return fn(*args)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/client/session.py", line 1302, in _run_fn
+    status, run_metadata)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/framework/errors_impl.py", line 473, in __exit__
+    c_api.TF_GetCode(self.status.status))
+tensorflow.python.framework.errors_impl.FailedPreconditionError: Attempting to use uninitialized value W/Adam
+	 [[Node: W/Adam/read = Identity[T=DT_FLOAT, _class=["loc:@W"], _device="/job:localhost/replica:0/task:0/device:GPU:0"](W/Adam)]]
+	 [[Node: task-accuracy/accuracy/_7009 = _Recv[client_terminated=false, recv_device="/job:localhost/replica:0/task:0/device:CPU:0", send_device="/job:localhost/replica:0/task:0/device:GPU:0", send_device_incarnation=1, tensor_name="edge_1381191_task-accuracy/accuracy", tensor_type=DT_FLOAT, _device="/job:localhost/replica:0/task:0/device:CPU:0"]()]]
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "trainer.py", line 174, in <module>
+    epochs=params["global"]["epochs"]
+  File "trainer.py", line 151, in process
+    task, x_batch, y_batch)
+  File "trainer.py", line 126, in train_step
+    ], feed_dict=feed_dict
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/client/session.py", line 889, in run
+    run_metadata_ptr)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/client/session.py", line 1120, in _run
+    feed_dict_tensor, options, run_metadata)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/client/session.py", line 1317, in _do_run
+    options, run_metadata)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/client/session.py", line 1336, in _do_call
+    raise type(e)(node_def, op, message)
+tensorflow.python.framework.errors_impl.FailedPreconditionError: Attempting to use uninitialized value W/Adam
+	 [[Node: W/Adam/read = Identity[T=DT_FLOAT, _class=["loc:@W"], _device="/job:localhost/replica:0/task:0/device:GPU:0"](W/Adam)]]
+	 [[Node: task-accuracy/accuracy/_7009 = _Recv[client_terminated=false, recv_device="/job:localhost/replica:0/task:0/device:CPU:0", send_device="/job:localhost/replica:0/task:0/device:GPU:0", send_device_incarnation=1, tensor_name="edge_1381191_task-accuracy/accuracy", tensor_type=DT_FLOAT, _device="/job:localhost/replica:0/task:0/device:CPU:0"]()]]
+
+Caused by op 'W/Adam/read', defined at:
+  File "trainer.py", line 174, in <module>
+    epochs=params["global"]["epochs"]
+  File "trainer.py", line 105, in process
+    task_loss + diff_loss, global_step=global_step)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/training/optimizer.py", line 353, in minimize
+    name=name)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/training/optimizer.py", line 474, in apply_gradients
+    self._create_slots([_get_variable_for(v) for v in var_list])
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/training/adam.py", line 136, in _create_slots
+    self._zeros_slot(v, "m", self._name)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/training/optimizer.py", line 796, in _zeros_slot
+    named_slots[_var_key(var)] = slot_creator.create_zeros_slot(var, op_name)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/training/slot_creator.py", line 174, in create_zeros_slot
+    colocate_with_primary=colocate_with_primary)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/training/slot_creator.py", line 148, in create_slot_with_initializer
+    dtype)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/training/slot_creator.py", line 67, in _create_slot_var
+    validate_shape=validate_shape)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/variable_scope.py", line 1203, in get_variable
+    constraint=constraint)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/variable_scope.py", line 1092, in get_variable
+    constraint=constraint)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/variable_scope.py", line 425, in get_variable
+    constraint=constraint)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/variable_scope.py", line 394, in _true_getter
+    use_resource=use_resource, constraint=constraint)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/variable_scope.py", line 805, in _get_single_variable
+    constraint=constraint)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/variables.py", line 213, in __init__
+    constraint=constraint)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/variables.py", line 356, in _init_from_args
+    self._snapshot = array_ops.identity(self._variable, name="read")
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/array_ops.py", line 125, in identity
+    return gen_array_ops.identity(input, name=name)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/ops/gen_array_ops.py", line 2071, in identity
+    "Identity", input=input, name=name)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/framework/op_def_library.py", line 787, in _apply_op_helper
+    op_def=op_def)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/framework/ops.py", line 2956, in create_op
+    op_def=op_def)
+  File "/usr/local/lib/python3.4/dist-packages/tensorflow/python/framework/ops.py", line 1470, in __init__
+    self._traceback = self._graph._extract_stack()  # pylint: disable=protected-access
+
+FailedPreconditionError (see above for traceback): Attempting to use uninitialized value W/Adam
+	 [[Node: W/Adam/read = Identity[T=DT_FLOAT, _class=["loc:@W"], _device="/job:localhost/replica:0/task:0/device:GPU:0"](W/Adam)]]
+	 [[Node: task-accuracy/accuracy/_7009 = _Recv[client_terminated=false, recv_device="/job:localhost/replica:0/task:0/device:CPU:0", send_device="/job:localhost/replica:0/task:0/device:GPU:0", send_device_incarnation=1, tensor_name="edge_1381191_task-accuracy/accuracy", tensor_type=DT_FLOAT, _device="/job:localhost/replica:0/task:0/device:CPU:0"]()]]
+
+

@@ -3,6 +3,7 @@ import sys
 sys.path.append("..")
 import yaml
 import tensorflow as tf
+import numpy as np
 
 
 def test_placeholder():
@@ -195,7 +196,34 @@ def test_cond_for():
         l_, res = sess.run([l, p], feed_dict={indice: 5})
         print(l_)
         print(res)
-         
+
+# need to test embedding_layer 
+# it seemed all bug occured in embedding_layer 
+# or maybe it is caused by processor test processor.Vocabulary_
+
+def test_vocabulary():
+    from tensorflow.contrib import learn
+    processor = learn.preprocessing.VocabularyProcessor.restore(
+            "../temp/vocab")
+
+    print(len(processor.vocabulary_)) # get 6877
+
+    file_wv = "../data/glove.6B/glove.6B.{}d.txt".format(100)
+    wv = {}
+    embedding_matrix = []
+
+    with open(file_wv, 'r') as f:
+        for line in f:
+            line = line.split(' ')
+            word = line[0]
+            wv[word] = list(map(float, line[1:]))
+
+    for idx in range(len(processor.vocabulary_)):
+        word = processor.vocabulary_.reverse(idx)
+        embedding_matrix.append(
+            wv[word] if word in wv else np.random.normal(size=100))
+    em = np.array(embedding_matrix)
+    print(np.shape(em)) # 6877 100 no problem 
     
 if __name__ == "__main__":
     # test_placeholder()
@@ -206,4 +234,6 @@ if __name__ == "__main__":
     # test_tf_gather_v2()
     # test_one_hot()
     # test_cond()
-    test_cond_for()
+    # test_cond_for()
+    test_vocabulary()
+ 

@@ -22,41 +22,41 @@ class RNN(object):
                 
         #l2_loss = tf.constant(0.0)
                         
-        with tf.name_scope("forward-cell"):
-            if num_layers != 1:
-                cells = []
-                for i in range(num_layers):
-                    rnn_cell = DropoutWrapper(
-                        GRUCell(hidden_size),
-                        input_keep_prob=input_keep_prob,
-                        output_keep_prob=output_keep_prob
-                    )
-                    cells.append(rnn_cell)
-                self.cell_fw = MultiRNNCell(cells)
-            else:
-                self.cell_fw = DropoutWrapper(
-                    GRUCell(hidden_size),
+        #with tf.name_scope("forward-cell"):
+        if num_layers != 1:
+            cells = []
+            for i in range(num_layers):
+                rnn_cell = DropoutWrapper(
+                    GRUCell(hidden_size, reuse=tf.get_variable_scope().reuse),
                     input_keep_prob=input_keep_prob,
                     output_keep_prob=output_keep_prob
                 )
+                cells.append(rnn_cell)
+            self.cell_fw = MultiRNNCell(cells)
+        else:
+            self.cell_fw = DropoutWrapper(
+                GRUCell(hidden_size, reuse=tf.get_variable_scope().reuse),
+                input_keep_prob=input_keep_prob,
+                output_keep_prob=output_keep_prob
+            )
 
-        with tf.name_scope("backward-cell"):
-            if num_layers != 1:
-                cells = []
-                for i in range(num_layers):
-                    rnn_cell = DropoutWrapper(
-                        GRUCell(hidden_size),
-                        input_keep_prob=self.input_keep_prob,
-                        output_keep_prob=self.output_keep_prob
-                    )
-                    cells.append(rnn_cell)
-                self.cell_bw = MultiRNNCell(cells)
-            else:
-                self.cell_bw = DropoutWrapper(
-                    GRUCell(hidden_size),
+        # with tf.name_scope("backward-cell"):
+        if num_layers != 1:
+            cells = []
+            for i in range(num_layers):
+                rnn_cell = DropoutWrapper(
+                    GRUCell(hidden_size, reuse=tf.get_variable_scope().reuse),
                     input_keep_prob=self.input_keep_prob,
                     output_keep_prob=self.output_keep_prob
                 )
+                cells.append(rnn_cell)
+            self.cell_bw = MultiRNNCell(cells)
+        else:
+            self.cell_bw = DropoutWrapper(
+                GRUCell(hidden_size, reuse=tf.get_variable_scope().reuse),
+                input_keep_prob=self.input_keep_prob,
+                output_keep_prob=self.output_keep_prob
+            )
 
     def process(self, x, seq_len):
         """
