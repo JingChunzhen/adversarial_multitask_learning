@@ -93,7 +93,7 @@ class EVAL(object):
             task_accuracy = instance.task_accuracy
 
             # discriminator_optimizer = tf.train.AdamOptimizer(learning_rate)
-            task_optimizer = tf.train.AdamOptimizer(learning_rate)
+            task_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
             # shared_optimizer = tf.train.AdamOptimizer(learning_rate)
 
             # discriminator_vars = tf.get_collection(

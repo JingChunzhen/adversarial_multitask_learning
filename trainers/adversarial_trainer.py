@@ -93,9 +93,11 @@ class EVAL(object):
             discriminator_accuracy = instance.discriminator_accuracy
             task_accuracy = instance.task_accuracy
 
-            discriminator_optimizer = tf.train.AdamOptimizer(learning_rate)
-            task_optimizer = tf.train.AdamOptimizer(learning_rate)
-            shared_optimizer = tf.train.AdamOptimizer(learning_rate)
+            discriminator_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            task_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            shared_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            # use AdamOptimizer may cause error 
+            # https://github.com/amitmac/Question-Answering/issues/2
 
             discriminator_vars = tf.get_collection(
                 tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator")
