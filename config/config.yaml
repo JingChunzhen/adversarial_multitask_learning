@@ -1,6 +1,6 @@
 global:
-  sequence_length: 100
-  embedding_size: 100
+  sequence_length: 20
+  embedding_size: 50
   num_classes: 2
   num_tasks: 16
   static: False
@@ -12,6 +12,7 @@ global:
   batch_size: 16
   learning_rate: 0.00001
   epochs: 10
+  lamda: 0.0001
 
 shared_model:
   num_layers: 1  

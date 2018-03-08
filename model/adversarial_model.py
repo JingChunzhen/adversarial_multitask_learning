@@ -14,7 +14,8 @@ class Adversarial_Network(object):
     a batch of data come from the same task
     TODO
     trim the sequence to a fitted length according to specific task    
-    use multi-thread to process shared and private model simultaneously    
+    use multi-thread to process shared and private model simultaneously 
+    cf. https://arxiv.org/abs/1704.05742   
     Attributes:
         adv_loss (float): domain classification loss on adversarial network 
         task_loss (float): sentiment classification loss on specific task
@@ -38,8 +39,7 @@ class Adversarial_Network(object):
         self.input_x = tf.placeholder(
             tf.int32, [None, sequence_length], name="x")
         self.input_y = tf.placeholder(
-            tf.float32, [None, num_classes], name="y")
-        # TODO need to be tested
+            tf.float32, [None, num_classes], name="y")        
         self.task = tf.placeholder(tf.int32, name="task")
 
         self.private_model = []
@@ -51,7 +51,8 @@ class Adversarial_Network(object):
                           dynamic=True,
                           use_attention=True,
                           attention_size=attention_size)
-            self.private_model.append(rnn)  # TODO need to be tested
+            self.private_model.append(rnn)  
+        print("private model complete!")
 
         with tf.variable_scope("shared", reuse=tf.AUTO_REUSE):
             self.shared_model = RNN(sequence_length,
@@ -61,7 +62,9 @@ class Adversarial_Network(object):
                                     use_attention=True,
                                     attention_size=attention_size)
 
+        print("shared model complete!")
         # attempting to use uninitialized value beta2_power_2 if with tf.variable_scope("shared")
+        # this is cause by Adam optimizer 
         # if not in this with, it says no variables to optimize 
         if embedding_matrix:
             self.W = tf.get_variable(shape=[vocab_size, embedding_size],
@@ -73,12 +76,13 @@ class Adversarial_Network(object):
             self.W = tf.Variable( 
                 tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
                 name="W")
-
+        print("embedding matrix complete!")
         with tf.variable_scope("discriminator"):
             self.discriminator = MLP(sequence_length=rnn_hidden_size * 2,
                                      hidden_size=mlp_hidden_size,
                                      num_classes=len(params["task"]))
 
+        print("mlp complete!")
         task_label = tf.one_hot(self.task, len(params["task"]))
         task_label = tf.expand_dims(task_label, 0)
         batch_size = tf.shape(self.input_x)[0]
@@ -115,6 +119,9 @@ class Adversarial_Network(object):
         with tf.name_scope("private-model-processing"):
             useless = tf.constant(
                 [0]*2*rnn_hidden_size, dtype=tf.float32)
+            useless = tf.expand_dims(useless, 0)
+            useless = tf.tile(useless, multiples=[batch_size, 1])
+            # shape of all inputs of op gather must match
             l = []
             for i in range(len(params["task"])):
                 temp = tf.cond(tf.equal(self.task, i), lambda: self.private_model[i].process(
@@ -128,20 +135,26 @@ class Adversarial_Network(object):
             d = self.discriminator.process(s)
             # batch_size, num_tasks
 
-        with tf.name_scope("loss"):
+        with tf.name_scope("fully-connected-layer"):
             sp = tf.concat([s, p], axis=1)
             # batch_size, rnn_hidden_size * 4
-            adv_losses = tf.nn.softmax_cross_entropy_with_logits(
+            w = tf.Variable(tf.truncated_normal([rnn_hidden_size*4, num_classes], stddev=0.1), name="w")
+            b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
+            scores = tf.nn.xw_plus_b(sp, w, b)
+        
+        with tf.name_scope("loss"):            
+            adv_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
                 labels=task_label, logits=d)
             self.adv_loss = tf.reduce_mean(adv_losses)
-            self.diff_loss = tf.norm(
-                tf.matmul(s, p, transpose_a=True), ord=2)  # TODO
-            task_losses = tf.nn.softmax_cross_entropy_with_logits(
-                labels=self.input_y, logits=sp)
+            diff_losses = tf.norm(
+                tf.multiply(s, p), ord=2, axis=1)  # TODO still need to be tested 
+            self.diff_loss = tf.reduce_mean(diff_losses)
+            task_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
+                labels=self.input_y, logits=scores) # logits and labels must be same size 
             self.task_loss = tf.reduce_mean(task_losses)
 
         with tf.name_scope("task-accuracy"):
-            predictions = tf.argmax(sp, 1, name="predictions")
+            predictions = tf.argmax(scores, 1, name="predictions")
             correct_predictions = tf.equal(
                 predictions, tf.argmax(self.input_y, 1))
             self.task_accuracy = tf.reduce_mean(

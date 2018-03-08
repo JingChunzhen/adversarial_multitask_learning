@@ -224,7 +224,106 @@ def test_vocabulary():
             wv[word] if word in wv else np.random.normal(size=100))
     em = np.array(embedding_matrix)
     print(np.shape(em)) # 6877 100 no problem 
+
+def test_norm():
+    s = [
+        [1,1,1,1,1],
+        [2,2,2,2,2],
+        [3,3,3,3,3],        
+    ]
+
+    p = [
+        [4,4,4,4,4],
+        [5,5,5,5,5],
+        [6,6,6,6,6]
+    ]
+
+    ts = tf.constant(s, dtype=tf.float32)
+    tp = tf.constant(p, dtype=tf.float32)
+    temp = tf.matmul(ts, tp, transpose_a=True)
+    res = tf.norm(temp, ord=2)
+
+    r = [1, 2, 3]
+
+    t = [4, 5, 6]
+
+    tr = tf.constant(r, dtype=tf.float32)
+    tt = tf.constant(t, dtype=tf.float32)
+    temp1 = tf.matmul(tr, tt, transpose_a=True)
+    res1 = tf.norm(temp1, ord=2)
+
+    with tf.Session() as sess:
+        temp_, res_ = sess.run([temp1, res1])
+        print(temp_)
+        print(res_) # 160
+        print(np.shape(temp_))
+        print(np.shape(res_))
+
+def test_tensordot():
+    s = [
+        [1,1,1,1,1],
+        [2,2,2,2,2],
+        [3,3,3,3,3],        
+    ]
+
+    p = [
+        [4,4,4,4,4],
+        [5,5,5,5,5],
+        [6,6,6,6,6]
+    ]
+
+    ts = tf.constant(s, dtype=tf.float32)
+    # ts = tf.expand_dims(ts, axis=1)
+    print(ts)
+    tp = tf.constant(p, dtype=tf.float32)
+    # tp = tf.expand_dims(tp, axis=1)
+    # res = tf.tensordot(ts, tp, axes=[[1], [1]])
+    temp = tf.multiply(ts, tp)
+    temp1 = tf.norm(temp, ord=2, axis=1)
+    res = tf.reduce_mean(temp1)
+    print(res)
+    with tf.Session() as sess:
+        res_= sess.run(res)
+        print(res_)
     
+def test_basic_matmul():
+    a = tf.constant([0.9, 0.1, 0.2], dtype=tf.float32)
+    b = tf.constant([0.1, 0.8, 0.4], dtype=tf.float32)
+    res = tf.multiply(a, b)
+    # a = tf.expand_dims(a, axis=0)
+    # b = tf.expand_dims(b, axis=0)
+    # res = tf.matmul(a, b, transpose_a=True)
+    res_norm = tf.norm(res, ord=2)
+    with tf.Session() as sess:
+        res_, rn = sess.run([res, res_norm])
+        print(res_, rn)
+
+def test_vocabulary_processor():
+    from tensorflow.contrib import learn
+    import sys
+    sys.path.append("..")
+    from utils.data_loader import load_data, batch_iter
+    processor = learn.preprocessing.VocabularyProcessor.restore(
+        "../temp/vocab")
+    processor.max_document_length = 100
+    data, label = load_data("test")
+    test_data = []
+    for d, l in zip(data, label):
+        # for each task in data        
+        d = list(processor.transform(d))  # generator -> list        
+        d = np.array(d)
+        l = np.array(l)
+        print(np.shape(d))
+        print(np.shape(l))
+        test_data.append(d)
+    td = np.array(test_data[2])
+    print(np.shape(td))
+
+    for task, batch in batch_iter(test_data, label, 7, 3, False):
+        x, y = zip(*batch)
+        print(task) 
+        break
+
 if __name__ == "__main__":
     # test_placeholder()
     # res = test_initialize()
@@ -235,5 +334,9 @@ if __name__ == "__main__":
     # test_one_hot()
     # test_cond()
     # test_cond_for()
-    test_vocabulary()
+    # test_vocabulary()
+    # test_norm()
+    # test_tensordot()
+    # test_basic_matmul()
+    test_vocabulary_processor()
  

@@ -7,10 +7,10 @@ from model.attention import attention
 
 class RNN(object):
 
-    def __init__(self, sequence_length, 
+    def __init__(self, sequence_length,
                  hidden_size, num_layers, dynamic, use_attention,
                  attention_size, input_keep_prob=1, output_keep_prob=1):
-        
+
         self.sequence_length = sequence_length
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -19,10 +19,10 @@ class RNN(object):
         self.attention_size = attention_size
         self.input_keep_prob = input_keep_prob
         self.output_keep_prob = output_keep_prob
-                
-        #l2_loss = tf.constant(0.0)
-                        
-        #with tf.name_scope("forward-cell"):
+
+        # l2_loss = tf.constant(0.0)
+
+        # with tf.variable_scope("forward-cell", reuse=True):
         if num_layers != 1:
             cells = []
             for i in range(num_layers):
@@ -40,7 +40,7 @@ class RNN(object):
                 output_keep_prob=output_keep_prob
             )
 
-        # with tf.name_scope("backward-cell"):
+        # with tf.variable_scope("backward-cell", reuse=True):
         if num_layers != 1:
             cells = []
             for i in range(num_layers):
@@ -112,4 +112,3 @@ class RNN(object):
                     outputs = tf.transpose(outputs, [1, 0, 2])
                     output = tf.reduce_sum(outputs, axis=1)
         return output
-        

@@ -17,8 +17,7 @@ with open("../config/config.yaml", "rb") as f:
 class EVAL(object):
     """
     # TODO add visualization of training process 
-    Adversarial Network Training
-    cf. https://arxiv.org/abs/1704.05742
+    Adversarial Network Training    
     """
 
     def __init__(self, sequence_length):
@@ -26,20 +25,42 @@ class EVAL(object):
         self.processor = learn.preprocessing.VocabularyProcessor.restore(
             "../temp/vocab")
         self.processor.max_document_length = sequence_length
-        raw_data, self.train_label = load_data("train")
+        raw_data, raw_label = load_data("train")
         self.train_data = []
-        for d in raw_data:
+        self.train_label = []
+        for rd, rl in zip(raw_data, raw_label):
             # for each task in data
-            d = list(self.processor.transform(d))  # generator -> list
-            self.train_data.append(d)
-        del raw_data
+            tmp_data = []
+            tmp_label = []
+            rd = list(self.processor.transform(rd))  # generator -> list
+            for tmp_x, tmp_y in zip(rd, rl):
+                tmp_x = tmp_x.tolist()
+                if np.sum(tmp_x) != 0:
+                    tmp_data.append(tmp_x)
+                    tmp_label.append(tmp_y)
+            self.train_data.append(tmp_data)
+            self.train_label.append(tmp_label)
+        del raw_data, raw_label
+        print("load training data complete!")
+
         self.test_data = []
-        raw_data, self.test_label = load_data("test")
-        for d in raw_data:
-            d = self.processor.transform(d)
-            self.test_data.append(d)
-        del raw_data
+        self.test_label = []
+        raw_data, raw_label = load_data("test")
+        for rd, rl in zip(raw_data, raw_label):
+            tmp_data = []
+            tmp_label = []
+            rd = list(self.processor.transform(rd))
+            for tmp_x, tmp_y in zip(rd, rl):
+                tmp_x = tmp_x.tolist()
+                if np.sum(tmp_x) != 0:
+                    tmp_data.append(tmp_x)
+                    tmp_label.append(tmp_label)
+            self.test_data.append(tmp_data)
+            self.test_label.append(tmp_label)
+        del raw_data, raw_label
+        print("load test data complete!")
         self.embedding_matrix = self._embedding_matrix_initializer()
+        print("read from embedding_matrix complete!")
 
     def _embedding_matrix_initializer(self):
         """
@@ -62,26 +83,27 @@ class EVAL(object):
                 wv[word] if word in wv else np.random.normal(size=params["global"]["embedding_size"]))
         return embedding_matrix
 
-    def process(self, learning_rate, batch_size, epochs):
+    def process(self, learning_rate, batch_size, epochs, lamda, evaluate_every):
         """
         """
         embedding_matrix = list(chain.from_iterable(
-            self.embedding_matrix)) if self.embedding_matrix else None       
+            self.embedding_matrix)) if self.embedding_matrix else None
         with tf.Graph().as_default():
-            instance = Adversarial_Network(sequence_length=params["global"]["sequence_length"],
-                                           num_classes=params["global"]["num_classes"],
-                                           embedding_size=params["global"]["embedding_size"],
-                                           vocab_size=len(
-                                               self.processor.vocabulary_),
-                                           embedding_matrix=embedding_matrix,
-                                           static=params["global"]["static"],
-                                           rnn_hidden_size=params["global"]["rnn_hidden_size"],
-                                           shared_num_layers=params["shared_model"]["num_layers"],
-                                           private_num_layers=params["private_model"]["num_layers"],
-                                           dynamic=params["global"]["dynamic"],
-                                           use_attention=params["global"]["use_attention"],
-                                           attention_size=params["global"]["attention_size"],
-                                           mlp_hidden_size=params["global"]["mlp_hidden_size"])
+            instance = Adversarial_Network(
+                sequence_length=params["global"]["sequence_length"],
+                num_classes=params["global"]["num_classes"],
+                embedding_size=params["global"]["embedding_size"],
+                vocab_size=len(
+                    self.processor.vocabulary_),
+                embedding_matrix=embedding_matrix,
+                static=params["global"]["static"],
+                rnn_hidden_size=params["global"]["rnn_hidden_size"],
+                shared_num_layers=params["shared_model"]["num_layers"],
+                private_num_layers=params["private_model"]["num_layers"],
+                dynamic=params["global"]["dynamic"],
+                use_attention=params["global"]["use_attention"],
+                attention_size=params["global"]["attention_size"],
+                mlp_hidden_size=params["global"]["mlp_hidden_size"])
 
             global_step = tf.Variable(0, trainable=False)
             init = tf.global_variables_initializer()
@@ -93,10 +115,11 @@ class EVAL(object):
             discriminator_accuracy = instance.discriminator_accuracy
             task_accuracy = instance.task_accuracy
 
-            discriminator_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            discriminator_optimizer = tf.train.GradientDescentOptimizer(
+                learning_rate)
             task_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
             shared_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-            # use AdamOptimizer may cause error 
+            # use AdamOptimizer may cause error
             # https://github.com/amitmac/Question-Answering/issues/2
 
             discriminator_vars = tf.get_collection(
@@ -104,14 +127,16 @@ class EVAL(object):
             shared_vars = tf.get_collection(
                 tf.GraphKeys.TRAINABLE_VARIABLES, scope="shared")
 
-            task_train_op = task_optimizer.minimize(task_loss + diff_loss, global_step=global_step)
+            task_train_op = task_optimizer.minimize(
+                task_loss + lamda * diff_loss, global_step=global_step)
             discriminator_train_op = discriminator_optimizer.minimize(
                 adv_loss, var_list=discriminator_vars, global_step=global_step)
             shared_train_op = shared_optimizer.minimize(
-                -1 * adv_loss, var_list=shared_vars, global_step=global_step) # No varibales to optimize
+                -1 * adv_loss, var_list=shared_vars, global_step=global_step)  # No varibales to optimize
 
             with tf.Session() as sess:
                 sess.run(init)
+
                 def train_step(task, x_batch, y_batch):
                     feed_dict = {
                         instance.task: task,
@@ -149,9 +174,9 @@ class EVAL(object):
                             task_accuracy
                         ], feed_dict=feed_dict
                     )
-                    return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_                
+                    return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_
 
-                for task, batch in batch_iter(self.train_data, self.train_label, batch_size, epochs, shuffle=False):                    
+                for task, batch in batch_iter(self.train_data, self.train_label, batch_size, epochs, shuffle=False):
                     x_batch, y_batch = zip(*batch)
                     current_step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = train_step(
                         task, x_batch, y_batch)
@@ -175,5 +200,7 @@ if __name__ == "__main__":
     eval.process(
         learning_rate=params["global"]["learning_rate"],
         batch_size=params["global"]["batch_size"],
-        epochs=params["global"]["epochs"]
+        epochs=params["global"]["epochs"],
+        lamda=params["global"]["lamda"],
+        evaluate_every=100
     )
