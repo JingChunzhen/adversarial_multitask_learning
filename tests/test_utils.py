@@ -138,30 +138,34 @@ def test_batch():
         ]
 
     ]
-    
+
     data = []
     for i in range(len(d)):
-        data.append(list(zip(d[i], l[i])))    
+        data.append(list(zip(d[i], l[i])))
 
     for i in range(10):
         task = random.randint(0, 2)
         yield task, data[task]
+
 
 def test_batch_iter():
     for task, batch in test_batch():
         print(task)
         print(batch)
         x, y = zip(*batch)
-        print(x, y)       
+        print(x, y)
         print("############")
     pass
+
 
 def test_cond():
     a = tf.constant(10)
     b = tf.constant(20)
     indice = tf.placeholder(tf.int32)
+
     def f1():
         return a
+
     def f2():
         return 0
     res = tf.cond(tf.equal(indice, 0), true_fn=f1, false_fn=f2)
@@ -174,12 +178,14 @@ def test_cond():
 
 def test_cond_for():
     indice = tf.placeholder(tf.int32)
-    a = tf.constant([2,1,5,3,3,2,1,4,6,2,1], dtype=tf.int32)
+    a = tf.constant([2, 1, 5, 3, 3, 2, 1, 4, 6, 2, 1], dtype=tf.int32)
     b = tf.constant([0]*11, dtype=tf.int32)
     #p = tf.Variable([0,1,0,0,1,0,1,0,1,0,1], dtype=tf.int32)
+
     def fn1():
         #tf.assign(p, a)
-        return tf.constant([0,0,0,0,0,0,0,0,0,0,0], dtype=tf.int32)
+        return tf.constant([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], dtype=tf.int32)
+
     def fn2():
         #p = tf.assign(p, a)
         return a
@@ -187,9 +193,9 @@ def test_cond_for():
     for i in range(10):
         temp = tf.cond(tf.equal(indice, i), lambda: a, lambda: b)
         l.append(temp)
-        
-    p = tf.gather(l, indice)      
-    
+
+    p = tf.gather(l, indice)
+
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
@@ -197,16 +203,17 @@ def test_cond_for():
         print(l_)
         print(res)
 
-# need to test embedding_layer 
-# it seemed all bug occured in embedding_layer 
+# need to test embedding_layer
+# it seemed all bug occured in embedding_layer
 # or maybe it is caused by processor test processor.Vocabulary_
+
 
 def test_vocabulary():
     from tensorflow.contrib import learn
     processor = learn.preprocessing.VocabularyProcessor.restore(
-            "../temp/vocab")
+        "../temp/vocab")
 
-    print(len(processor.vocabulary_)) # get 6877
+    print(len(processor.vocabulary_))  # get 6877
 
     file_wv = "../data/glove.6B/glove.6B.{}d.txt".format(100)
     wv = {}
@@ -223,19 +230,20 @@ def test_vocabulary():
         embedding_matrix.append(
             wv[word] if word in wv else np.random.normal(size=100))
     em = np.array(embedding_matrix)
-    print(np.shape(em)) # 6877 100 no problem 
+    print(np.shape(em))  # 6877 100 no problem
+
 
 def test_norm():
     s = [
-        [1,1,1,1,1],
-        [2,2,2,2,2],
-        [3,3,3,3,3],        
+        [1, 1, 1, 1, 1],
+        [2, 2, 2, 2, 2],
+        [3, 3, 3, 3, 3],
     ]
 
     p = [
-        [4,4,4,4,4],
-        [5,5,5,5,5],
-        [6,6,6,6,6]
+        [4, 4, 4, 4, 4],
+        [5, 5, 5, 5, 5],
+        [6, 6, 6, 6, 6]
     ]
 
     ts = tf.constant(s, dtype=tf.float32)
@@ -255,21 +263,22 @@ def test_norm():
     with tf.Session() as sess:
         temp_, res_ = sess.run([temp1, res1])
         print(temp_)
-        print(res_) # 160
+        print(res_)  # 160
         print(np.shape(temp_))
         print(np.shape(res_))
 
+
 def test_tensordot():
     s = [
-        [1,1,1,1,1],
-        [2,2,2,2,2],
-        [3,3,3,3,3],        
+        [1, 1, 1, 1, 1],
+        [2, 2, 2, 2, 2],
+        [3, 3, 3, 3, 3],
     ]
 
     p = [
-        [4,4,4,4,4],
-        [5,5,5,5,5],
-        [6,6,6,6,6]
+        [4, 4, 4, 4, 4],
+        [5, 5, 5, 5, 5],
+        [6, 6, 6, 6, 6]
     ]
 
     ts = tf.constant(s, dtype=tf.float32)
@@ -283,9 +292,10 @@ def test_tensordot():
     res = tf.reduce_mean(temp1)
     print(res)
     with tf.Session() as sess:
-        res_= sess.run(res)
+        res_ = sess.run(res)
         print(res_)
-    
+
+
 def test_basic_matmul():
     a = tf.constant([0.9, 0.1, 0.2], dtype=tf.float32)
     b = tf.constant([0.1, 0.8, 0.4], dtype=tf.float32)
@@ -298,6 +308,7 @@ def test_basic_matmul():
         res_, rn = sess.run([res, res_norm])
         print(res_, rn)
 
+
 def test_vocabulary_processor():
     from tensorflow.contrib import learn
     import sys
@@ -309,8 +320,8 @@ def test_vocabulary_processor():
     data, label = load_data("test")
     test_data = []
     for d, l in zip(data, label):
-        # for each task in data        
-        d = list(processor.transform(d))  # generator -> list        
+        # for each task in data
+        d = list(processor.transform(d))  # generator -> list
         d = np.array(d)
         l = np.array(l)
         print(np.shape(d))
@@ -321,8 +332,34 @@ def test_vocabulary_processor():
 
     for task, batch in batch_iter(test_data, label, 7, 3, False):
         x, y = zip(*batch)
-        print(task) 
+        print(task)
         break
+
+
+def test_get_collections_of_rnn():
+    import sys
+    sys.path.append("..")
+    from model.rnn_model import RNN
+    from tensorflow.contrib.rnn import GRUCell
+    with tf.variable_scope("rnn-model"):
+        # rnn = RNN(
+        #     sequence_length=10,
+        #     hidden_size=10,
+        #     num_layers=1,
+        #     dynamic=True,
+        #     use_attention=False,
+        #     attention_size=10)
+        gru = GRUCell(10)
+        # 是不是必须要运行之后才可以显示前缀的名字
+
+    rnn_vars = tf.get_collection(
+        tf.GraphKeys.TRAINABLE_VARIABLES, scope="rnn-model")
+    print(rnn_vars)
+    init = tf.global_variables_initializer()
+    with tf.Session() as sess:
+        sess.run(init)
+        rv = sess.run(rnn_vars)
+        print(rv)
 
 if __name__ == "__main__":
     # test_placeholder()
@@ -338,5 +375,5 @@ if __name__ == "__main__":
     # test_norm()
     # test_tensordot()
     # test_basic_matmul()
-    test_vocabulary_processor()
- 
+    # test_vocabulary_processor()
+    test_get_collections_of_rnn()

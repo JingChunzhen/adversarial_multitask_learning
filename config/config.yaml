@@ -1,5 +1,5 @@
 global:
-  sequence_length: 20
+  sequence_length: 200
   embedding_size: 50
   num_classes: 2
   num_tasks: 16

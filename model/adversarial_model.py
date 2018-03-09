@@ -39,41 +39,27 @@ class Adversarial_Network(object):
         self.input_x = tf.placeholder(
             tf.int32, [None, sequence_length], name="x")
         self.input_y = tf.placeholder(
-            tf.float32, [None, num_classes], name="y")        
+            tf.float32, [None, num_classes], name="y")
         self.task = tf.placeholder(tf.int32, name="task")
 
-        self.private_model = []
-        for task_name in params["task"]:
-            with tf.variable_scope("{}-rnn".format(task_name), reuse=tf.AUTO_REUSE):
-                rnn = RNN(sequence_length,
-                          rnn_hidden_size,
-                          private_num_layers,
-                          dynamic=True,
-                          use_attention=True,
-                          attention_size=attention_size)
-            self.private_model.append(rnn)  
-        print("private model complete!")
+        self.rnn_model = RNN(sequence_length,
+                             rnn_hidden_size,
+                             private_num_layers,
+                             dynamic=True,
+                             use_attention=True,
+                             attention_size=attention_size)
 
-        with tf.variable_scope("shared", reuse=tf.AUTO_REUSE):
-            self.shared_model = RNN(sequence_length,
-                                    rnn_hidden_size,
-                                    shared_num_layers,
-                                    dynamic=True,
-                                    use_attention=True,
-                                    attention_size=attention_size)
-
-        print("shared model complete!")
         # attempting to use uninitialized value beta2_power_2 if with tf.variable_scope("shared")
-        # this is cause by Adam optimizer 
-        # if not in this with, it says no variables to optimize 
+        # this is cause by Adam optimizer
+        # if not in this with, it says no variables to optimize
         if embedding_matrix:
             self.W = tf.get_variable(shape=[vocab_size, embedding_size],
-                                        initializer=tf.constant_initializer(
-                                            embedding_matrix),
-                                        name='W',
-                                        trainable=not static)
+                                     initializer=tf.constant_initializer(
+                embedding_matrix),
+                name='W',
+                trainable=not static)
         else:
-            self.W = tf.Variable( 
+            self.W = tf.Variable(
                 tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
                 name="W")
         print("embedding matrix complete!")
@@ -82,7 +68,6 @@ class Adversarial_Network(object):
                                      hidden_size=mlp_hidden_size,
                                      num_classes=len(params["task"]))
 
-        print("mlp complete!")
         task_label = tf.one_hot(self.task, len(params["task"]))
         task_label = tf.expand_dims(task_label, 0)
         batch_size = tf.shape(self.input_x)[0]
@@ -101,7 +86,8 @@ class Adversarial_Network(object):
             seq_len = tf.reduce_max(mask, axis=1)
 
         with tf.name_scope("shared-model-processing"):
-            s = self.shared_model.process(self.embedded_chars, seq_len)
+            s = self.rnn_model.process(
+                self.embedded_chars, seq_len, scope="shared")
             # batch_size, rnn_hidden_size * 2
 
         # with tf.name_scope("private-model-processing"):
@@ -122,10 +108,15 @@ class Adversarial_Network(object):
             useless = tf.expand_dims(useless, 0)
             useless = tf.tile(useless, multiples=[batch_size, 1])
             # shape of all inputs of op gather must match
+
+            def fn(i):
+                output = self.rnn_model.process(
+                    self.embedded_chars, seq_len, "private-{}".format(params["task"][i]))
+                return output
             l = []
             for i in range(len(params["task"])):
-                temp = tf.cond(tf.equal(self.task, i), lambda: self.private_model[i].process(
-                    self.embedded_chars, seq_len), lambda: useless)
+                temp = tf.cond(tf.equal(self.task, i),
+                               lambda: fn(i), lambda: useless)
                 # set reuse=True or reuse=tf.AUTO_REUSE
                 l.append(temp)
             p = tf.gather(l, self.task)
@@ -138,19 +129,20 @@ class Adversarial_Network(object):
         with tf.name_scope("fully-connected-layer"):
             sp = tf.concat([s, p], axis=1)
             # batch_size, rnn_hidden_size * 4
-            w = tf.Variable(tf.truncated_normal([rnn_hidden_size*4, num_classes], stddev=0.1), name="w")
+            w = tf.Variable(tf.truncated_normal(
+                [rnn_hidden_size*4, num_classes], stddev=0.1), name="w")
             b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
             scores = tf.nn.xw_plus_b(sp, w, b)
-        
-        with tf.name_scope("loss"):            
+
+        with tf.name_scope("loss"):
             adv_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
                 labels=task_label, logits=d)
             self.adv_loss = tf.reduce_mean(adv_losses)
             diff_losses = tf.norm(
-                tf.multiply(s, p), ord=2, axis=1)  # TODO still need to be tested 
+                tf.multiply(s, p), ord=2, axis=1)  # TODO still need to be tested
             self.diff_loss = tf.reduce_mean(diff_losses)
             task_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
-                labels=self.input_y, logits=scores) # logits and labels must be same size 
+                labels=self.input_y, logits=scores)  # logits and labels must be same size
             self.task_loss = tf.reduce_mean(task_losses)
 
         with tf.name_scope("task-accuracy"):

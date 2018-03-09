@@ -130,9 +130,9 @@ class EVAL(object):
             task_train_op = task_optimizer.minimize(
                 task_loss + lamda * diff_loss, global_step=global_step)
             discriminator_train_op = discriminator_optimizer.minimize(
-                adv_loss, var_list=discriminator_vars, global_step=global_step)
+                adv_loss, var_list=discriminator_vars)
             shared_train_op = shared_optimizer.minimize(
-                -1 * adv_loss, var_list=shared_vars, global_step=global_step)  # No varibales to optimize
+                -1 * adv_loss, var_list=shared_vars)  # No varibales to optimize
 
             with tf.Session() as sess:
                 sess.run(init)
@@ -181,12 +181,12 @@ class EVAL(object):
                     current_step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = train_step(
                         task, x_batch, y_batch)
 
-                    print("step: {}, adversarial loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, \
-                    task accuracy: {:.2f}".format(current_step,
-                                                  adv_loss_,
-                                                  task_loss_,
-                                                  dis_acc_,
-                                                  task_acc_))
+                    print("step: {}, adversarial loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, task accuracy: {:.2f}".format(
+                        current_step,
+                        adv_loss_,
+                        task_loss_,
+                        dis_acc_,
+                        task_acc_))
                     if current_step % evaluate_every == 0:
                         """
                         test transfer effect
