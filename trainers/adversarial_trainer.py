@@ -108,7 +108,7 @@ class EVAL(object):
             global_step = tf.Variable(0, trainable=False)
             init = tf.global_variables_initializer()
 
-            adv_loss = instance.adv_loss  # TODO
+            adv_loss = instance.adv_loss  
             diff_loss = instance.diff_loss
             task_loss = instance.task_loss
 
@@ -132,7 +132,7 @@ class EVAL(object):
             discriminator_train_op = discriminator_optimizer.minimize(
                 adv_loss, var_list=discriminator_vars)
             shared_train_op = shared_optimizer.minimize(
-                -1 * adv_loss, var_list=shared_vars)  # No varibales to optimize
+                -1 * 0.0001 * adv_loss, var_list=shared_vars)  # No varibales to optimize
 
             with tf.Session() as sess:
                 sess.run(init)

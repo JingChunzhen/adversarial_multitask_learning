@@ -1,6 +1,6 @@
 global:
-  sequence_length: 200
-  embedding_size: 50
+  sequence_length: 800
+  embedding_size: 100
   num_classes: 2
   num_tasks: 16
   static: False
@@ -9,8 +9,8 @@ global:
   dynamic: True
   use_attention: False
   attention_size: 50
-  batch_size: 16
-  learning_rate: 0.00001
+  batch_size: 50
+  learning_rate: 0.0001
   epochs: 10
   lamda: 0.0001
 

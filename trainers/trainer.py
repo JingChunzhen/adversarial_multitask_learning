@@ -94,7 +94,7 @@ class EVAL(object):
                 embedding_size=params["global"]["embedding_size"],
                 vocab_size=len(
                     self.processor.vocabulary_),
-                embedding_matrix=None,
+                embedding_matrix=embedding_matrix,
                 static=params["global"]["static"],
                 rnn_hidden_size=params["global"]["rnn_hidden_size"],
                 shared_num_layers=params["shared_model"]["num_layers"],
