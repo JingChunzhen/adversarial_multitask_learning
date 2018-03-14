@@ -105,8 +105,7 @@ class EVAL(object):
                 mlp_hidden_size=params["global"]["mlp_hidden_size"])
 
             global_step = tf.Variable(0, trainable=False)
-            init = tf.global_variables_initializer()
-
+            
             # adv_loss = instance.adv_loss  # TODO
             diff_loss = instance.diff_loss
             task_loss = instance.task_loss
@@ -115,7 +114,7 @@ class EVAL(object):
             task_accuracy = instance.task_accuracy
 
             # discriminator_optimizer = tf.train.AdamOptimizer(learning_rate)
-            task_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            task_optimizer = tf.train.AdamOptimizer(learning_rate)
             # shared_optimizer = tf.train.AdamOptimizer(learning_rate)
 
             # discriminator_vars = tf.get_collection(
@@ -129,6 +128,7 @@ class EVAL(object):
             #     adv_loss, var_list=discriminator_vars, global_step=global_step)
             # shared_train_op = shared_optimizer.minimize(
             #     -1 * adv_loss, var_list=shared_vars, global_step=global_step) # No varibales to optimize
+            init = tf.global_variables_initializer()
 
             with tf.Session() as sess:
                 sess.run(init)

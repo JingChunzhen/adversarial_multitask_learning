@@ -106,19 +106,19 @@ class EVAL(object):
                 mlp_hidden_size=params["global"]["mlp_hidden_size"])
 
             global_step = tf.Variable(0, trainable=False)
-            init = tf.global_variables_initializer()
-
+            
             adv_loss = instance.adv_loss  
             diff_loss = instance.diff_loss
             task_loss = instance.task_loss
 
             discriminator_accuracy = instance.discriminator_accuracy
+            # TODO to jointly train the discriminator using output of private domain 
             task_accuracy = instance.task_accuracy
 
-            discriminator_optimizer = tf.train.GradientDescentOptimizer(
+            discriminator_optimizer = tf.train.AdamOptimizer(
                 learning_rate)
-            task_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-            shared_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+            task_optimizer = tf.train.AdamOptimizer(learning_rate)
+            shared_optimizer = tf.train.AdamOptimizer(learning_rate)
             # use AdamOptimizer may cause error
             # https://github.com/amitmac/Question-Answering/issues/2
 
@@ -134,6 +134,7 @@ class EVAL(object):
             shared_train_op = shared_optimizer.minimize(
                 -1 * 0.0001 * adv_loss, var_list=shared_vars)  # No varibales to optimize
 
+            init = tf.global_variables_initializer() # this line of code must be here 
             with tf.Session() as sess:
                 sess.run(init)
 
