@@ -62,10 +62,10 @@ class TEST_RNN(object):
             self.rnn_model = RNN(sequence_length,
                                  hidden_size,
                                  num_layers,
-                                 dynamic=True,
+                                 dynamic=False,
                                  use_attention=True,
                                  attention_size=attention_size)
-            output = self.rnn_model.process(
+            output, alpha = self.rnn_model.process(
                 self.embedded_chars, seq_len, "rnn-model")
         """
 
