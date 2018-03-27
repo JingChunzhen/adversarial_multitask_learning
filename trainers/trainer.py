@@ -58,7 +58,9 @@ class EVAL(object):
             self.test_label.append(tmp_label)
         del raw_data, raw_label
         print("load test data complete!")
-        self.embedding_matrix = self._embedding_matrix_initializer()
+        self.embedding_matrix = self._embedding_matrix_initializer() if os.path.exists(
+            "../data/glove.6B/glove.6B.{}d.txt".format(params["global"]["embedding_size"])) else None
+
         print("read from embedding_matrix complete!")
 
     def _embedding_matrix_initializer(self):
@@ -105,7 +107,7 @@ class EVAL(object):
                 mlp_hidden_size=params["global"]["mlp_hidden_size"])
 
             global_step = tf.Variable(0, trainable=False)
-            
+
             # adv_loss = instance.adv_loss  # TODO
             diff_loss = instance.diff_loss
             task_loss = instance.task_loss

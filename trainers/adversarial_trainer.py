@@ -59,7 +59,8 @@ class EVAL(object):
             self.test_label.append(tmp_label)
         del raw_data, raw_label
         print("load test data complete!")
-        self.embedding_matrix = self._embedding_matrix_initializer()
+        self.embedding_matrix = self._embedding_matrix_initializer() if os.path.exists(
+            "../data/glove.6B/glove.6B.{}d.txt".format(params["global"]["embedding_size"])) else None
         print("read from embedding_matrix complete!")
 
     def _embedding_matrix_initializer(self):
@@ -106,13 +107,13 @@ class EVAL(object):
                 mlp_hidden_size=params["global"]["mlp_hidden_size"])
 
             global_step = tf.Variable(0, trainable=False)
-            
-            adv_loss = instance.adv_loss  
+
+            adv_loss = instance.adv_loss
             diff_loss = instance.diff_loss
             task_loss = instance.task_loss
 
             discriminator_accuracy = instance.discriminator_accuracy
-            # TODO to jointly train the discriminator using output of private domain 
+            # TODO to jointly train the discriminator using output of private domain
             task_accuracy = instance.task_accuracy
 
             discriminator_optimizer = tf.train.AdamOptimizer(
@@ -134,9 +135,21 @@ class EVAL(object):
             shared_train_op = shared_optimizer.minimize(
                 -1 * 0.0001 * adv_loss, var_list=shared_vars)  # No varibales to optimize
 
-            init = tf.global_variables_initializer() # this line of code must be here 
+            tf.summary.scalar("adversarial_loss", adv_loss)
+            tf.summary.scalar("diff_loss", diff_loss)
+            tf.summary.scalar("task_loss", task_loss)
+            tf.summary.scalar("task_accuracy", task_accuracy)
+
+            merged_summary_op = tf.summary.merge_all()
+
+            init = tf.global_variables_initializer()  # this line of code must be here
             with tf.Session() as sess:
                 sess.run(init)
+
+                train_summary_writer = tf.summary.FileWriter(
+                    logdir='../temp/summary/adversarial/train', graph=sess.graph)
+                dev_summary_writer = tf.summary.FileWriter(
+                    logdir='../temp/summary/adversarial/dev', graph=sess.graph)
 
                 def train_step(task, x_batch, y_batch):
                     feed_dict = {
@@ -144,9 +157,10 @@ class EVAL(object):
                         instance.input_x: x_batch,
                         instance.input_y: y_batch
                     }
-                    step, _, _, _, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
+                    step, summary, _, _, _, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
                         [
                             global_step,
+                            merged_summary_op,
                             discriminator_train_op,
                             shared_train_op,
                             task_train_op,
@@ -157,6 +171,8 @@ class EVAL(object):
                             task_accuracy
                         ], feed_dict=feed_dict
                     )
+
+                    train_summary_writer.add_summary(summary, step)
                     return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_
 
                 def dev_step(task, x_batch, y_batch):
