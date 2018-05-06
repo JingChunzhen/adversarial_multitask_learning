@@ -6,6 +6,7 @@ import random
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import learn
+from sklearn.metrics import classification_report
 from model.adversarial_model import Adversarial_Network
 from utils.data_loader import load_data, batch_iter
 from itertools import chain
@@ -208,8 +209,26 @@ class EVAL(object):
                         """
                         test transfer effect
                         """
-                        pass
-                    pass
+                        print("Evaluation:")
+                        losses = []
+                        accuracies = []
+
+                        y_true = []
+                        y_pred = []
+
+                        for task, batch in batch_iter(self.test_data, self.test_label, batch_size, epochs, shuffle=False):
+                            x_dev, y_dev = zip(*batch)
+                            pred_, accuracy_, loss_ = dev_step(task, x_dev, y_dev)
+                            accuracies.append(accuracy_)
+                            losses.append(loss_)
+
+                            y_pred.extend(pred_.tolist())
+                            y_true.extend(np.argmax(y_dev, axis=1).tolist())
+
+                            print("Evaluation Accuracy: {}, Loss: {}".format(
+                                np.mean(accuracies), np.mean(losses)))
+                            print(classification_report(
+                                y_true=y_true, y_pred=y_pred))
 
 
 if __name__ == "__main__":
