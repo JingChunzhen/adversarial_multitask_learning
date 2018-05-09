@@ -210,24 +210,37 @@ class EVAL(object):
                         test transfer effect
                         """
                         print("Evaluation:")
-                        losses = []
-                        accuracies = []
+                        diff_losses = []
+                        adv_losses = []
+                        task_losses = []
+                        dis_accuracies = []
+                        task_accuracies = []
 
                         y_true = []
                         y_pred = []
 
                         for task, batch in batch_iter(self.test_data, self.test_label, batch_size, epochs, shuffle=False):
+                            if random.randint(0, 3) != 0:
+                                continue
                             x_dev, y_dev = zip(*batch)
-                            pred_, accuracy_, loss_ = dev_step(task, x_dev, y_dev)
-                            accuracies.append(accuracy_)
-                            losses.append(loss_)
+                            diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = dev_step(
+                                task, x_dev, y_dev)
+
+                            diff_losses.append(diff_loss_)  
+                            adv_losses.append(adv_loss_)
+                            task_losses.append(task_loss_)
+                            dis_accuracies.append(dis_acc_)
+                            task_accuracies.append(task_acc_)
 
                             y_pred.extend(pred_.tolist())
                             y_true.extend(np.argmax(y_dev, axis=1).tolist())
 
-                            print("Evaluation Accuracy: {}, Loss: {}".format(
-                                np.mean(accuracies), np.mean(losses)))
-                            print(classification_report(
+                            print("adversarial loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, task accuracy: {:.2f}".format(
+                                np.mean(adv_losses),
+                                np.mean(task_losses),
+                                np.mean(dis_accuracies),
+                                np.mean(task_accuracies)))
+                            print(classification_report(    
                                 y_true=y_true, y_pred=y_pred))
 
 

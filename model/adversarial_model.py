@@ -138,8 +138,13 @@ class Adversarial_Network(object):
             adv_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
                 labels=task_label, logits=d)
             self.adv_loss = tf.reduce_mean(adv_losses)
-            diff_losses = tf.norm(
-                tf.multiply(s, p), ord=2, axis=1)  # TODO still need to be tested
+            # diff_losses = tf.norm(
+            #     tf.multiply(s, p), ord=2, axis=1)  # TODO still need to be tested
+            diff_losses = tf.multiply(s, p)
+            diff_losses = tf.nn.relu(diff_losses)
+            diff_losses = tf.norm(diff_losses, ord=2, axis=1)
+            # setting all negative values of a tensor to zero 
+            # https://stackoverflow.com/questions/41043894/setting-all-negative-values-of-a-tensor-to-zero-in-tensorflow
             self.diff_loss = tf.reduce_mean(diff_losses)
             task_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
                 labels=self.input_y, logits=scores)  # logits and labels must be same size

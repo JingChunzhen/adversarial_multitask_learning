@@ -48,7 +48,8 @@ class EVAL(object):
     def process(self, learning_rate, batch_size, epochs, evaluate_every):
         """
         """       
-        with tf.Graph().as_default():
+        graph = tf.Graph()
+        with graph.as_default():
             instance = Adversarial_Network(
                 sequence_length=params["global"]["sequence_length"],
                 num_classes=params["global"]["num_classes"],
@@ -77,33 +78,51 @@ class EVAL(object):
             # discriminator_vars = tf.get_collection(
             #     tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator") # OK 
             # print(discriminator_vars)
+            embedding_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="W")
+            print(embedding_vars) # extract the params in embedding layer succeed 
             shared_vars = tf.get_collection(
                 tf.GraphKeys.TRAINABLE_VARIABLES, scope="shared")
             print(shared_vars)
             apparel_vars = tf.get_collection(
-                tf.GraphKeys.TRAINABLE_VARIABLES, scope="apparel-rnn")
+                tf.GraphKeys.TRAINABLE_VARIABLES, scope="private-apparel")
             print(apparel_vars)
             books_vars = tf.get_collection(
-                tf.GraphKeys.TRAINABLE_VARIABLES, scope="books-rnn")
+                tf.GraphKeys.TRAINABLE_VARIABLES, scope="private-books")
             print(books_vars)
-       
+            fc_vars = tf.get_collection(
+                tf.GraphKeys.TRAINABLE_VARIABLES, scope="fully-connected-layer")
+            print(fc_vars) # extract the params in fully-connected layer succeed 
+            
             with tf.Session() as sess:
                 sess.run(init)
+                
                 # dvs = sess.run(discriminator_vars)
                 # print(dvs)
-                svs = sess.run(shared_vars)
-                print(svs)
-                avs = sess.run(apparel_vars)
-                print(avs)
-                bvs = sess.run(books_vars)
-                print(bvs)
+                # svs = sess.run(shared_vars)
+                # print(svs)
+                # avs = sess.run(apparel_vars)
+                # print(avs)
+                # bvs = sess.run(books_vars)
+                # print(bvs)                
 
+                # tvars = tf.trainable_variables()
+                # print(tvars)
+
+                # rnn_w = instance.rnn_model.cell_fw.trainable_variables
+                rnn_vars = instance.rnn_model.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)
+                print(rnn_vars)
                 for task, batch in batch_iter(self.train_data, self.train_label, batch_size, epochs, shuffle=False):
+                    """
+                    TODO
+                    need to test saver and restore function 
+                    and extract variable according to the specfic scope or name 
+                    """
                     x, y = zip(*batch)
                     al, tl, svs = sess.run([advloss, taskloss, shared_vars], feed_dict={instance.task: task, instance.input_x: x, instance.input_y: y})
                     print(al)
                     print(tl)
                     print(svs)
+                    break
                     
                     
 

@@ -361,6 +361,50 @@ def test_get_collections_of_rnn():
         rv = sess.run(rnn_vars)
         print(rv)
 
+
+def test_variable_slice():
+    """
+    tf.Variable can be silced ?
+    """
+    w = tf.Variable(tf.truncated_normal(
+        [6, 3], stddev=0.1), name="w")
+
+    w2 = w[:3]
+    init = tf.global_variables_initializer()
+
+    with tf.Session() as sess:
+        sess.run(init)
+        sw, sw2 = sess.run([w, w2])
+        print(sw)
+        print(sw2)
+
+
+def test_relu():
+    a = tf.constant([
+        [0.9, 0.1, 0.2],
+        [1.0, 0.2, -0.4]
+    ],
+        dtype=tf.float32)
+    b = tf.constant([
+        [0.0, -0.8, 0.4],
+        [0.3, 0.4, 0.5]],
+        dtype=tf.float32)
+
+    c = tf.multiply(a, b)
+
+    d = tf.nn.relu(c)
+
+    e = tf.norm(d, ord=2, axis=1)
+    f = tf.reduce_mean(e)
+
+    with tf.Session() as sess:
+        c_, d_, e_, f_ = sess.run([c, d, e, f])
+        print(c_)
+        print(d_)
+        print(e_)
+        print(f_)
+
+
 if __name__ == "__main__":
     # test_placeholder()
     # res = test_initialize()
@@ -376,4 +420,6 @@ if __name__ == "__main__":
     # test_tensordot()
     # test_basic_matmul()
     # test_vocabulary_processor()
-    test_get_collections_of_rnn()
+    # test_get_collections_of_rnn()
+    # test_variable_slice()
+    test_relu()
