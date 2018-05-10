@@ -89,6 +89,6 @@ class Transfer(object):
         with tf.name_scope("task-accuracy"):
             self.predictions = tf.argmax(scores, 1, name="predictions")
             correct_predictions = tf.equal(
-                predictions, tf.argmax(self.input_y, 1))
+                self.predictions, tf.argmax(self.input_y, 1))
             self.task_accuracy = tf.reduce_mean(
                 tf.cast(correct_predictions, "float"), name="accuracy")

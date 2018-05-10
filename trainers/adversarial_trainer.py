@@ -85,7 +85,7 @@ class EVAL(object):
                 wv[word] if word in wv else np.random.normal(size=params["global"]["embedding_size"]))
         return embedding_matrix
 
-    def process(self, learning_rate, batch_size, epochs, lamda, evaluate_every):
+    def process(self, learning_rate, batch_size, epochs, lamda, evaluate_every, save_every):
         """
         """
         embedding_matrix = list(chain.from_iterable(
@@ -144,6 +144,7 @@ class EVAL(object):
             merged_summary_op = tf.summary.merge_all()
 
             init = tf.global_variables_initializer()  # this line of code must be here
+            saver = tf.train.Saver()
             with tf.Session() as sess:
                 sess.run(init)
 
@@ -205,6 +206,9 @@ class EVAL(object):
                         task_loss_,
                         dis_acc_,
                         task_acc_))
+
+                    current_step = tf.train.global_step(sess, global_step)
+
                     if current_step % evaluate_every == 0:
                         """
                         test transfer effect
@@ -223,25 +227,28 @@ class EVAL(object):
                             if random.randint(0, 3) != 0:
                                 continue
                             x_dev, y_dev = zip(*batch)
-                            diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = dev_step(
+                            _, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = dev_step(
                                 task, x_dev, y_dev)
 
-                            diff_losses.append(diff_loss_)  
+                            diff_losses.append(diff_loss_)
                             adv_losses.append(adv_loss_)
                             task_losses.append(task_loss_)
                             dis_accuracies.append(dis_acc_)
                             task_accuracies.append(task_acc_)
 
-                            y_pred.extend(pred_.tolist())
-                            y_true.extend(np.argmax(y_dev, axis=1).tolist())
+                            # y_pred.extend(pred_.tolist())
+                            # y_true.extend(np.argmax(y_dev, axis=1).tolist())
 
                             print("adversarial loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, task accuracy: {:.2f}".format(
                                 np.mean(adv_losses),
                                 np.mean(task_losses),
                                 np.mean(dis_accuracies),
                                 np.mean(task_accuracies)))
-                            print(classification_report(    
-                                y_true=y_true, y_pred=y_pred))
+                            # print(classification_report(
+                            #     y_true=y_true, y_pred=y_pred))
+                if current_step % save_every == 0:
+                    saver.save(sess, "../temp/model/adversarial/model",
+                               global_step=current_step)
 
 
 if __name__ == "__main__":
@@ -251,5 +258,6 @@ if __name__ == "__main__":
         batch_size=params["global"]["batch_size"],
         epochs=params["global"]["epochs"],
         lamda=params["global"]["lamda"],
-        evaluate_every=100
+        evaluate_every=100,
+        save_every=4000
     )
