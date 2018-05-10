@@ -9,7 +9,7 @@ from tensorflow.contrib import learn
 from sklearn.metrics import classification_report
 from model.adversarial_model import Adversarial_Network
 from model.transfer_model import Transfer
-from utils.data_loader import load_data, batch_iter
+from utils.data_loader import load_data_v2, batch_iter_v2
 from itertools import chain
 
 with open("../config/config.yaml", "rb") as f:
@@ -22,25 +22,44 @@ class EVAL(object):
     """
 
     def __init__(self):
-        """
-        using embedding_matrix, shared-model and fully-conneted params to initialize the transfer model 
-        Args:
-            embedding_matrix (list): embedding matrix of pre-trained adversarial model  
-            fc_w (list): fully connected weight of pre-trained model
-            fc_b (list): fully connected bias of pre-trained model         
-        """
-        pass
+        """data preparation 
+        """        
+        raw_x, raw_y = load_data_v2()            
+        self.max_document_length = 32 # this is optimal length of twitter airline
+        
+        try:
+            self.processor = learn.preprocessing.VocabularyProcessor.restore(
+                "../temp/vocab".format(task))
+            raw_x = list(self.processor.transform(raw_x))
+            
+            x, y = [], []
+            for tmp_x, tmp_y in zip(raw_x, raw_y):
+                tmp_x = tmp_x.tolist()
+                if np.sum(tmp_x) != 0:
+                    x.append(tmp_x) # rid x with all 0s 
+                    y.append(tmp_y)
+
+            x_temp, self.x_test, y_temp, self.y_test = train_test_split(
+                x, y, test_size=params["transfer"]["test_size"])
+            self.x_train, self.x_validate, self.y_train, self.y_validate = train_test_split(
+                x_temp, y_temp, test_size=params["transfer"]["validate_size"])
+            
+            del x_temp, y_temp, raw_x, x, y
+        except IOError as e:
+            print("File error {}".format(e))                 
+        self.instance = None       
 
         
     def _params_initializer(self, model_path):
         """
-        initialize parameters of the transfer model using pre-trained adversarial model 
+        initialize parameters of the transfer model using pre-trained adversarial network 
         this is supposed to be used in trainers 
         Args:
             model_path (string): path stored pre-trained adversarial model 
         Returns:
             embedding_matrix (list)
             fc_params: fully-connected weights and bias 
+            shared_model_vars (list of matrix): shared rnn model
         """
         adn = Adversarial_Network(
             sequence_length=params["global"]["sequence_length"],
@@ -85,9 +104,9 @@ class EVAL(object):
     def _rnn_initializer(self, shared_model_vars):
         """
         TODO: need to be tested 
-        initialize the rnn model in transfer model using pre-trained adversarial model
+        initialize the rnn model in transfer model using pre-trained adversarial network
         Args:            
-            shared_model_vars (list): shared model's variables 
+            shared_model_vars (list): pre-trained shared model's variables 
         """
         rnn_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="transfer-shared")
         for rnn_var, shared_model_var in zip(rnn_vars, shared_model_vars):
@@ -138,6 +157,7 @@ class EVAL(object):
                 logdir='../temp/summary/transfer/train', graph=sess.graph)
             dev_summary_writer = tf.summary.FileWriter(
                 logdir='../temp/summary/transfer/dev', graph=sess.graph)
+            
             def train_step(batch_x, batch_y):
                 feed_dict = {
                     instance.input_x: batch_x,
@@ -158,9 +178,9 @@ class EVAL(object):
                 feed_dict = {
                     instance.input_x: batch_x,
                     instance.input_y: batch_y}
-                step, summary, loss_, accuracy_  = sess.run(
+                pred_, summary, loss_, accuracy_  = sess.run(
                     [
-                        global_step,
+                        preds,
                         merged_summary_op,                        
                         loss,
                         accuracy
@@ -168,9 +188,37 @@ class EVAL(object):
                 )
 
                 dev_summary_writer.add_summary(summary, step)
-                return step, loss_, accuracy_                
+                return pred_, loss_, accuracy_                
 
-            for batch in generate():
-                pass
-            pass
-        pass
+            for batch in batch_iter_v2(list(zip(self.x_train, self.y_train)), batch_size, epochs):
+                x_batch, y_batch = zip(*batch)
+                current_step, loss_, accuracy_ = train_step(
+                    x_batch, y_batch)
+                print("Training, step: {}, accuracy: {:.2f}, loss: {:.5f}".format(
+                    current_step, accuracy_, loss_))
+                # current_step = tf.train.global_step(sess, global_step)
+
+                if current_step % evaluate_every == 0:
+                    print("\nEvaluation:")
+
+                    losses = []
+                    accuracies = []
+
+                    y_true = []
+                    y_pred = []
+
+                    for batch in batch_iter_v2(list(zip(self.x_validate, self.y_validate)), 50, 1):
+                        x_dev, y_dev = zip(*batch)
+                        pred_, loss_, accuracy_ = dev_step(x_dev, y_dev)
+                        accuracies.append(accuracy_)
+                        losses.append(loss_)
+
+                        y_pred.extend(pred_.tolist())
+                        y_true.extend(np.argmax(y_dev, axis=1).tolist())
+
+                    print("Evaluation Accuracy: {}, Loss: {}".format(
+                        np.mean(accuracies), np.mean(losses)))
+                    print(classification_report(
+                        y_true=y_true, y_pred=y_pred))
+
+            

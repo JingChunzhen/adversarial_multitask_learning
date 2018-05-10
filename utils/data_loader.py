@@ -51,7 +51,7 @@ def load_data(train_or_test):
             for line in f.readlines():
                 line = clean_str(line)
                 polarities.append([1, 0] if int(line[0]) == 0 else [0, 1])
-                review = line[1:].strip()                
+                review = line[1:].strip()
                 reviews.append(review)
         data.append(reviews)
         label.append(polarities)
@@ -103,3 +103,49 @@ def batch_iter(corpus, label, batch_size, epochs, shuffle):
 
             yield task, data[task][start_index: end_index]
 
+
+# load data and batch_iter for transfer model
+
+def load_data_v2():
+    '''    
+    load data (Twitter Airlines)in transfer trainer num_classes can only be two            
+    Returns:
+        x (list of string): data
+        y (list of integer): labels
+    '''
+    x, y = [], []
+
+    file_name = "../data/Tweets.csv"
+    df = pd.read_csv(file_name)
+
+    df = df[df["airline_sentiment"] !=
+            "neutral"][["airline_sentiment", "text"]]
+    df = df.dropna(axis=0, how="any")
+
+    reviews = df['text'].tolist()
+    labels = df['airline_sentiment'].tolist()
+    x = [clean_str(review) for review in reviews]
+    for label in labels:
+        y.append([0, 1] if label == "negative" else [1, 0])
+
+    return x, y
+
+
+def batch_iter_v2(data, batch_size, num_epochs, shuffle=True):
+    """
+    batch iteration in transfer trainer 
+    """
+    data = np.array(data)
+    data_size = len(data)
+    num_batches_per_epoch = int((len(data) - 1) / batch_size) + 1
+    for epoch in range(num_epochs):
+        # Shuffle the data at each epoch
+        if shuffle:
+            shuffle_indices = np.random.permutation(np.arange(data_size))
+            shuffled_data = data[shuffle_indices]
+        else:
+            shuffled_data = data
+        for batch_num in range(num_batches_per_epoch):
+            start_index = batch_num * batch_size
+            end_index = min((batch_num + 1) * batch_size, data_size)
+            yield shuffled_data[start_index:end_index]

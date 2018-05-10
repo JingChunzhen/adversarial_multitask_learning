@@ -55,9 +55,9 @@ class Adversarial_Network(object):
         if embedding_matrix:
             self.W = tf.get_variable(shape=[vocab_size, embedding_size],
                                      initializer=tf.constant_initializer(
-                embedding_matrix),
-                name='W',
-                trainable=not static)
+                                         embedding_matrix),
+                                     name='W',
+                                     trainable=not static)
         else:
             self.W = tf.Variable(
                 tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
@@ -143,7 +143,7 @@ class Adversarial_Network(object):
             diff_losses = tf.multiply(s, p)
             diff_losses = tf.nn.relu(diff_losses)
             diff_losses = tf.norm(diff_losses, ord=2, axis=1)
-            # setting all negative values of a tensor to zero 
+            # setting all negative values of a tensor to zero
             # https://stackoverflow.com/questions/41043894/setting-all-negative-values-of-a-tensor-to-zero-in-tensorflow
             self.diff_loss = tf.reduce_mean(diff_losses)
             task_losses = tf.nn.softmax_cross_entropy_with_logits_v2(

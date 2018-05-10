@@ -19,6 +19,10 @@ shared_model:
   
 private_model:
   num_layers: 1
+
+transfer:
+  test_size: 0.2
+  validate_size: 0.1
   
 task:
  - apparel
