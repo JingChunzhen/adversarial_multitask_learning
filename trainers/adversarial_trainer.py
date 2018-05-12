@@ -55,7 +55,7 @@ class EVAL(object):
                 tmp_x = tmp_x.tolist()
                 if np.sum(tmp_x) != 0:
                     tmp_data.append(tmp_x)
-                    tmp_label.append(tmp_label)
+                    tmp_label.append(tmp_y)
             self.test_data.append(tmp_data)
             self.test_label.append(tmp_label)
         del raw_data, raw_label
@@ -109,7 +109,9 @@ class EVAL(object):
 
             global_step = tf.Variable(0, trainable=False)
 
-            adv_loss = instance.adv_loss
+            # adv_loss = instance.adv_loss
+            disc_loss = instance.disc_loss
+            gen_loss = instance.gen_loss
             diff_loss = instance.diff_loss
             task_loss = instance.task_loss
 
@@ -132,14 +134,16 @@ class EVAL(object):
             task_train_op = task_optimizer.minimize(
                 task_loss + lamda * diff_loss, global_step=global_step)
             discriminator_train_op = discriminator_optimizer.minimize(
-                adv_loss, var_list=discriminator_vars)
+                disc_loss, var_list=discriminator_vars)
             shared_train_op = shared_optimizer.minimize(
-                -1 * 0.0001 * adv_loss, var_list=shared_vars)  # No varibales to optimize
+                -1 * 0.05 * gen_loss, var_list=shared_vars)  # No varibales to optimize
 
-            tf.summary.scalar("adversarial_loss", adv_loss)
+            tf.summary.scalar("disc_loss", disc_loss)
+            tf.summary.scalar("gen_loss", gen_loss)
             tf.summary.scalar("diff_loss", diff_loss)
             tf.summary.scalar("task_loss", task_loss)
             tf.summary.scalar("task_accuracy", task_accuracy)
+            tf.summary.scalar("discriminator_accuracy", discriminator_accuracy)
 
             merged_summary_op = tf.summary.merge_all()
 
@@ -157,9 +161,11 @@ class EVAL(object):
                     feed_dict = {
                         instance.task: task,
                         instance.input_x: x_batch,
-                        instance.input_y: y_batch
+                        instance.input_y: y_batch,
+                        instance.input_keep_prob: params["global"]["input_keep_prob"],
+                        instance.output_keep_prob: params["global"]["output_keep_prob"]
                     }
-                    step, summary, _, _, _, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
+                    step, summary, _, _, _, diff_loss_, disc_loss_, gen_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
                         [
                             global_step,
                             merged_summary_op,
@@ -167,7 +173,8 @@ class EVAL(object):
                             shared_train_op,
                             task_train_op,
                             diff_loss,
-                            adv_loss,
+                            disc_loss,
+                            gen_loss,
                             task_loss,
                             discriminator_accuracy,
                             task_accuracy
@@ -175,34 +182,41 @@ class EVAL(object):
                     )
 
                     train_summary_writer.add_summary(summary, step)
-                    return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_
+                    return step, diff_loss_, disc_loss_, gen_loss_, task_loss_, dis_acc_, task_acc_
 
                 def dev_step(task, x_batch, y_batch):
                     feed_dict = {
                         instance.task: task,
                         instance.input_x: x_batch,
-                        instance.input_y: y_batch
+                        instance.input_y: y_batch,
+                        instance.input_keep_prob: 1.0,
+                        instance.output_keep_prob: 1.0
                     }
-                    step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
+                    step, summary, diff_loss_, disc_loss_, gen_loss_, task_loss_, dis_acc_, task_acc_ = sess.run(
                         [
                             global_step,
+                            merged_summary_op,
                             diff_loss,
-                            adv_loss,
+                            disc_loss,
+                            gen_loss,
                             task_loss,
                             discriminator_accuracy,
                             task_accuracy
                         ], feed_dict=feed_dict
                     )
-                    return step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_
+                    dev_summary_writer.add_summary(summary, step)
+                    return step, diff_loss_, disc_loss_, gen_loss_, task_loss_, dis_acc_, task_acc_
 
                 for task, batch in batch_iter(self.train_data, self.train_label, batch_size, epochs, shuffle=False):
                     x_batch, y_batch = zip(*batch)
-                    current_step, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = train_step(
+                    current_step, diff_loss_, disc_loss_, gen_loss_, task_loss_, dis_acc_, task_acc_ = train_step(
                         task, x_batch, y_batch)
 
-                    print("step: {}, adversarial loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, task accuracy: {:.2f}".format(
+                    print("step: {}, discriminator loss: {:.5f}, generator loss: {:.5f}, diff loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, task accuracy: {:.2f}".format(
                         current_step,
-                        adv_loss_,
+                        disc_loss_,
+                        gen_loss_,
+                        diff_loss_,
                         task_loss_,
                         dis_acc_,
                         task_acc_))
@@ -210,54 +224,52 @@ class EVAL(object):
                     current_step = tf.train.global_step(sess, global_step)
 
                     if current_step % evaluate_every == 0:
-                        """
-                        test transfer effect
-                        """
                         print("Evaluation:")
                         diff_losses = []
-                        adv_losses = []
+                        disc_losses = []
+                        gen_losses = []
                         task_losses = []
                         dis_accuracies = []
                         task_accuracies = []
 
-                        y_true = []
-                        y_pred = []
-
-                        for task, batch in batch_iter(self.test_data, self.test_label, batch_size, epochs, shuffle=False):
-                            if random.randint(0, 3) != 0:
-                                continue
+                        cnt = 0
+                        for task, batch in batch_iter(self.test_data, self.test_label, 50, 1, shuffle=True):
                             x_dev, y_dev = zip(*batch)
-                            _, diff_loss_, adv_loss_, task_loss_, dis_acc_, task_acc_ = dev_step(
+                            _, diff_loss_, disc_loss_, gen_loss_, task_loss_, dis_acc_, task_acc_ = dev_step(
                                 task, x_dev, y_dev)
 
                             diff_losses.append(diff_loss_)
-                            adv_losses.append(adv_loss_)
+                            disc_losses.append(disc_loss_)
+                            gen_losses.append(gen_loss_)
                             task_losses.append(task_loss_)
                             dis_accuracies.append(dis_acc_)
                             task_accuracies.append(task_acc_)
 
-                            # y_pred.extend(pred_.tolist())
-                            # y_true.extend(np.argmax(y_dev, axis=1).tolist())
+                            cnt += 1
+                            if cnt == 10:
+                                break
 
-                            print("adversarial loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, task accuracy: {:.2f}".format(
-                                np.mean(adv_losses),
-                                np.mean(task_losses),
-                                np.mean(dis_accuracies),
-                                np.mean(task_accuracies)))
-                            # print(classification_report(
-                            #     y_true=y_true, y_pred=y_pred))
-                if current_step % save_every == 0:
-                    saver.save(sess, "../temp/model/adversarial/model",
-                               global_step=current_step)
+                        print("discriminator loss: {:.5f}, generator loss: {:.5f}, diff loss: {:.5f}, task loss: {:.5f}, discriminator accuracy: {:.2f}, task accuracy: {:.2f}".format(
+                            np.mean(disc_losses),
+                            np.mean(gen_losses),
+                            np.mean(diff_losses),
+                            np.mean(task_losses),
+                            np.mean(dis_accuracies),
+                            np.mean(task_accuracies)))
+
+                    if current_step % save_every == 0:
+                        saver.save(sess, "../temp/model/adversarial/model",
+                                   global_step=current_step)
 
 
 if __name__ == "__main__":
     eval = EVAL(params["global"]["sequence_length"])
+
     eval.process(
         learning_rate=params["global"]["learning_rate"],
         batch_size=params["global"]["batch_size"],
         epochs=params["global"]["epochs"],
         lamda=params["global"]["lamda"],
-        evaluate_every=100,
-        save_every=4000
+        evaluate_every=40,
+        save_every=500
     )

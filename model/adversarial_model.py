@@ -16,8 +16,9 @@ class Adversarial_Network(object):
     trim the sequence to a fitted length according to specific task    
     use multi-thread to process shared and private model simultaneously 
     cf. https://arxiv.org/abs/1704.05742   
-    Attributes:
-        adv_loss (float): domain classification loss on adversarial network 
+    Attributes:        
+        disc_loss (float): domain classification loss on both private and shared model
+        gen_loss (float): domian classification loss on shared model 
         task_loss (float): sentiment classification loss on specific task
         diff_loss (float): overlapping features between shared and private model
     """
@@ -31,16 +32,24 @@ class Adversarial_Network(object):
                  static,
                  rnn_hidden_size,
                  shared_num_layers,
-                 private_num_layers,
+                 private_num_layers,                 
                  dynamic,
                  use_attention,
                  attention_size,
                  mlp_hidden_size):
+        """
+        Args:
+            input_keep_prob (float): dropout rate in rnn model
+            output_keep_prob (float): dropout rate in rnn model
+        """
         self.input_x = tf.placeholder(
             tf.int32, [None, sequence_length], name="x")
         self.input_y = tf.placeholder(
             tf.float32, [None, num_classes], name="y")
         self.task = tf.placeholder(tf.int32, name="task")
+
+        self.input_keep_prob = tf.placeholder(tf.float32, name="keep_prob_in")
+        self.output_keep_prob = tf.placeholder(tf.float32, name="keep_prob_out")
 
         self.rnn_model = RNN(sequence_length,
                              rnn_hidden_size,
@@ -87,7 +96,7 @@ class Adversarial_Network(object):
 
         with tf.name_scope("shared-model-processing"):
             s = self.rnn_model.process(
-                self.embedded_chars, seq_len, scope="shared")
+                self.embedded_chars, seq_len, self.input_keep_prob, self.output_keep_prob, scope="shared")
             # batch_size, rnn_hidden_size * 2
 
         # with tf.name_scope("private-model-processing"):
@@ -111,7 +120,7 @@ class Adversarial_Network(object):
 
             def fn(i):
                 output = self.rnn_model.process(
-                    self.embedded_chars, seq_len, "private-{}".format(params["task"][i]))
+                    self.embedded_chars, seq_len, self.input_keep_prob, self.output_keep_prob, "private-{}".format(params["task"][i]))
                 return output
             l = []
             for i in range(len(params["task"])):
@@ -123,7 +132,8 @@ class Adversarial_Network(object):
             # batch_size, rnn_hidden_size * 2
 
         with tf.name_scope("discriminator-processing"):
-            d = self.discriminator.process(s)
+            ds = self.discriminator.process(s)
+            dp = self.discriminator.process(p)
             # batch_size, num_tasks
 
         with tf.name_scope("fully-connected-layer"):
@@ -135,14 +145,24 @@ class Adversarial_Network(object):
             scores = tf.nn.xw_plus_b(sp, w, b)
 
         with tf.name_scope("loss"):
-            adv_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
-                labels=task_label, logits=d)
-            self.adv_loss = tf.reduce_mean(adv_losses)
+            # adv_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
+            #     labels=task_label, logits=d)
+            # self.adv_loss = tf.reduce_mean(adv_losses)
+            disc_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
+                labels=task_label, logits=dp)
+            gen_losses = tf.nn.softmax_cross_entropy_with_logits_v2(
+                labels=task_label, logits=ds)
+            self.disc_loss = tf.reduce_mean(disc_losses + gen_losses)
+            self.gen_loss = tf.reduce_mean(gen_losses)
             # diff_losses = tf.norm(
             #     tf.multiply(s, p), ord=2, axis=1)  # TODO still need to be tested
+            # diff_losses = tf.multiply(s, p)
+            # diff_losses = tf.nn.relu(diff_losses)
+            # diff_losses = tf.norm(diff_losses, ord=2, axis=1)
+
             diff_losses = tf.multiply(s, p)
-            diff_losses = tf.nn.relu(diff_losses)
-            diff_losses = tf.norm(diff_losses, ord=2, axis=1)
+            diff_losses = tf.reduce_sum(diff_losses, axis=1)
+            diff_losses = tf.norm(diff_losses, ord=2, axis=0)
             # setting all negative values of a tensor to zero
             # https://stackoverflow.com/questions/41043894/setting-all-negative-values-of-a-tensor-to-zero-in-tensorflow
             self.diff_loss = tf.reduce_mean(diff_losses)
@@ -158,8 +178,18 @@ class Adversarial_Network(object):
                 tf.cast(correct_predictions, "float"), name="accuracy")
 
         with tf.name_scope("discriminator-accuracy"):
-            predictions = tf.argmax(d, 1, name="predictions")
-            correct_predictions = tf.equal(
-                predictions, tf.argmax(task_label, 1))
+            predictions_shared = tf.argmax(ds, 1, name="predictions-shared")
+            correct_predictions_shared = tf.equal(
+                predictions_shared, tf.argmax(task_label, 1))
+
+            predictions_private = tf.argmax(dp, 1, name="predictions-private")
+            correct_predictions_private = tf.equal(
+                predictions_private, tf.argmax(task_label, 1))
+
+            print(correct_predictions_shared)
+            print(correct_predictions_private)
+            correct_predictions = tf.concat(
+                [correct_predictions_shared, correct_predictions_private], axis=0)
+
             self.discriminator_accuracy = tf.reduce_mean(
                 tf.cast(correct_predictions, "float"), name="accuracy")

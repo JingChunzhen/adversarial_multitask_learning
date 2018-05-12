@@ -8,23 +8,22 @@ from model.attention import attention
 class RNN(object):
 
     def __init__(self, sequence_length,
-                 hidden_size, num_layers, dynamic, use_attention,
-                 attention_size, input_keep_prob=1, output_keep_prob=1):
+                 hidden_size, num_layers, dynamic, use_attention, attention_size):
 
         self.sequence_length = sequence_length
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.dynamic = dynamic
         self.use_attention = use_attention
-        self.attention_size = attention_size
-        self.input_keep_prob = input_keep_prob
-        self.output_keep_prob = output_keep_prob
+        self.attention_size = attention_size        
         
-    def process(self, x, seq_len, scope):
+    def process(self, x, seq_len, input_keep_prob, output_keep_prob, scope):
         """
         Args:
             x (tensor of list): shape (batch_size, sequence_length, embedding_size)
             seq_len (tensor of list): shape (batch_size, 1)
+            input_keep_prob (float): dropout rate 
+            output_keep_prob (float): dropout rate
             scope (string): the variable scope for this model 
         """        
         with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
@@ -33,16 +32,16 @@ class RNN(object):
                 for i in range(self.num_layers):
                     rnn_cell = DropoutWrapper(
                         GRUCell(self.hidden_size),
-                        input_keep_prob=self.input_keep_prob,
-                        output_keep_prob=self.output_keep_prob
+                        input_keep_prob=input_keep_prob,
+                        output_keep_prob=output_keep_prob
                     )
                     cells.append(rnn_cell)
                 self.cell_fw = MultiRNNCell(cells)
             else:
                 self.cell_fw = DropoutWrapper(
                     GRUCell(self.hidden_size),
-                    input_keep_prob=self.input_keep_prob,
-                    output_keep_prob=self.output_keep_prob
+                    input_keep_prob=input_keep_prob,
+                    output_keep_prob=output_keep_prob
                 )
             
             if self.num_layers != 1:
@@ -50,16 +49,16 @@ class RNN(object):
                 for i in range(self.num_layers):
                     rnn_cell = DropoutWrapper(
                         GRUCell(self.hidden_size),
-                        input_keep_prob=self.input_keep_prob,
-                        output_keep_prob=self.output_keep_prob
+                        input_keep_prob=input_keep_prob,
+                        output_keep_prob=output_keep_prob
                     )
                     cells.append(rnn_cell)
                 self.cell_bw = MultiRNNCell(cells)
             else:
                 self.cell_bw = DropoutWrapper(
                     GRUCell(self.hidden_size),
-                    input_keep_prob=self.input_keep_prob,
-                    output_keep_prob=self.output_keep_prob
+                    input_keep_prob=input_keep_prob,
+                    output_keep_prob=output_keep_prob
                 )
             if self.dynamic:
                 with tf.name_scope("dynamic-rnn-with-{}-layers".format(self.num_layers)):

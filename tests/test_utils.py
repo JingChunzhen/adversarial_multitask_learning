@@ -404,6 +404,14 @@ def test_relu():
         print(e_)
         print(f_)
 
+def test_random():
+    import random
+    for j in range(100):        
+        if random.randint(0, 20) != 0:
+            continue
+        
+        print("hah")
+    pass
 
 if __name__ == "__main__":
     # test_placeholder()
@@ -422,4 +430,5 @@ if __name__ == "__main__":
     # test_vocabulary_processor()
     # test_get_collections_of_rnn()
     # test_variable_slice()
-    test_relu()
+    # test_relu()
+    test_random()

@@ -9,10 +9,12 @@ global:
   dynamic: True
   use_attention: False
   attention_size: 50
+  input_keep_prob: 0.75
+  output_keep_prob: 0.75
   batch_size: 100
   learning_rate: 0.001
   epochs: 10
-  lamda: 0.0001
+  lamda: 0.01
 
 shared_model:
   num_layers: 1  
