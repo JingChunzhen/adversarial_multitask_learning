@@ -9,7 +9,6 @@ with open("../config/config.yaml", "r") as f:
     params = yaml.load(f)
 
 
-
 class Transfer(object):
     """
     transfer learning using shared model in adversarial network
@@ -40,6 +39,9 @@ class Transfer(object):
             tf.int32, [None, sequence_length], name="x")
         self.input_y = tf.placeholder(
             tf.float32, [None, num_classes], name="y")
+        self.input_keep_prob = tf.placeholder(tf.float32, name="keep_prob_in")
+        self.output_keep_prob = tf.placeholder(
+            tf.float32, name="keep_prob_out")
 
         self.rnn_model = RNN(sequence_length,
                              rnn_hidden_size,
@@ -48,11 +50,9 @@ class Transfer(object):
                              use_attention=True,
                              attention_size=attention_size)
 
-        self.W = tf.get_variable(shape=[vocab_size, embedding_size],
-                                 initializer=tf.constant_initializer(
-                                     embedding_matrix),
-                                 name='W',
-                                 trainable=not static)
+        self.W = tf.Variable(
+            tf.random_uniform([vocab_size, embedding_size], -1.0, 1.0),
+            name="transfer-W")
 
         with tf.name_scope("embedding-layer"):
             self.embedded_chars = tf.nn.embedding_lookup(self.W, self.input_x)
@@ -70,14 +70,12 @@ class Transfer(object):
             initialize the rnn model using pre-trained adversarial model 
             """
             s = self.rnn_model.process(
-                self.embedded_chars, seq_len, scope="transfer-shared")
+                self.embedded_chars, seq_len, self.input_keep_prob, self.output_keep_prob, scope="transfer-shared", )
 
-        with tf.name_scope("fully-connected-layer"):
+        with tf.name_scope("transfer-fully-connected-layer"):
             w = tf.get_variable(shape=[rnn_hidden_size*2, num_classes],
-                                initializer=tf.constant_initializer(fc_w),
                                 name='w')
             b = tf.get_variable(shape=[num_classes],
-                                initializer=tf.constant_initializer(fc_b),
                                 name='b')
             scores = tf.nn.xw_plus_b(s, w, b)
 

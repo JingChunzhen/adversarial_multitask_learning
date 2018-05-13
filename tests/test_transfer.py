@@ -17,6 +17,9 @@ with open("../config/config.yaml", "rb") as f:
     params = yaml.load(f)
 
 
+###
+# 测试不同的tensorflow model下使用get_collections根据scope获取变量的时候，会发生什么事情
+###
 class EVAL(object):
     """
     transfer learning using shared model in adversarial network
@@ -26,12 +29,16 @@ class EVAL(object):
         """data preparation 
         """
         raw_x, raw_y = load_data_v2()
-        self.max_document_length = 32  # this is optimal length of twitter airline
+        print(">>> raw data")
+        print(np.shape(raw_x))
+        # self.max_document_length = 800  # this is optimal length of twitter airline
 
         try:
             self.processor = learn.preprocessing.VocabularyProcessor.restore(
-                "../temp/vocab") 
+                "../temp/vocab")
+            self.processor.max_document_length = 800
             raw_x = list(self.processor.transform(raw_x))
+            print(np.shape(raw_x))  # -> 11541, 340
 
             x, y = [], []
             for tmp_x, tmp_y in zip(raw_x, raw_y):
@@ -48,7 +55,11 @@ class EVAL(object):
             del x_temp, y_temp, raw_x, x, y
         except IOError as e:
             print("File error {}".format(e))
+        print(">>> data")
+        print(np.shape(self.x_train))
+        print(np.shape(self.y_train))
         self.source_model = None
+        self.target_model = None
 
     def _params_initializer(self, model_path):
         """
@@ -80,8 +91,8 @@ class EVAL(object):
 
         embedding_vars = tf.get_collection(
             tf.GraphKeys.GLOBAL_VARIABLES, scope="W")
-        shared_model_vars = tf.get_collection(
-            tf.GraphKeys.GLOBAL_VARIABLES, scope="shared")
+        # shared_model_vars = tf.get_collection(
+        #     tf.GraphKeys.GLOBAL_VARIABLES, scope="shared")
         fc_vars = tf.get_collection(
             tf.GraphKeys.GLOBAL_VARIABLES, scope="fully-connected-layer")
 
@@ -90,51 +101,112 @@ class EVAL(object):
         with tf.Session() as sess:
             sess.run(init)
             saver.restore(sess, model_path)
+            # sess.run(ops) # assign params from source to target
             embedding_matrix = sess.run(embedding_vars)
             fc_params = sess.run(fc_vars)
-            shared_model_vars = sess.run(shared_model_vars)
+            # shared_model_vars = sess.run(shared_model_vars)
 
-        embedding_matrix = list(chain.from_iterable(embedding_matrix))
+        print(">>> embedding matrix")
+        print(np.shape(embedding_matrix))
+        embedding_matrix = list(chain.from_iterable(embedding_matrix[0]))
+        print(">>> embedding matrix")
+        print(np.shape(embedding_matrix))  # (687700,)
         fc_w, fc_b = fc_params
         fc_w = fc_w[:params["global"]["rnn_hidden_size"] * 2]
         fc_w = list(chain.from_iterable(fc_w))
-        fc_b = list(chain.from_iterable(fc_b))
-        return embedding_matrix, fc_w, fc_b, shared_model_vars
+        print(">>>> fc_w")
+        # print(fc_w)
+        print(np.shape(fc_w))  # 2 * rnn_hidden_size -> 512
+        print(">>> fc_b")
+        print(np.shape(fc_b))  # 2
+        # fc_b = list(chain.from_iterable(fc_b)) #
+        return embedding_matrix, fc_w, fc_b
 
-    def _rnn_initializer(self, shared_model_vars):
-        """
-        TODO: need to be tested 
-        initialize the rnn model in transfer model using pre-trained adversarial network
-        Args:            
-            shared_model_vars (list): pre-trained shared model's variables 
-        Return:
-            ops (list): list contain tf.assign 
-        """
-        ops = []
-        rnn_vars = tf.get_collection(
-            tf.GraphKeys.TRAINABLE_VARIABLES, scope="transfer-shared")
-        for rnn_var, shared_model_var in zip(rnn_vars, shared_model_vars):
-            op = rnn_var.assign(shared_model_var)
-            ops.append(op)
-        return ops                
-    
-    def _rnn_initializer(self, target, source):
+    def _rnn_initializer(self, sess):
         """
         copy params from source to target
         initialize the rnn model in transfer model using pre-trained adversarial network
         Args:
-            target (tensorflow model)
-            source (tensorflow model)
+            sess: tensoflow session
         Return:
             ops (list of assignment)             
         """
         ops = []
-        source_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="shared")
-        target_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="transfer-shared")
+        source_vars = tf.get_collection(
+            tf.GraphKeys.TRAINABLE_VARIABLES, scope="shared")
+        print(source_vars)
+        target_vars = tf.get_collection(
+            tf.GraphKeys.TRAINABLE_VARIABLES, scope="transfer-shared")
+        print(target_vars)
+        for target_var, source_var in zip(target_vars, source_vars):
+            print(target_var)
+            print(source_var)
+
         for target_var, source_var in zip(target_vars, source_vars):
             op = target_var.assign(source_var)
             ops.append(op)
-        return ops        
+
+        sess.run(ops)
+
+    def _get_source_vars(self, model_path):
+        """   
+        Args:
+            model_path (string): path stored the pre-trained adversarial net work        
+        """
+        self.source_model = Adversarial_Network(
+            sequence_length=params["global"]["sequence_length"],
+            num_classes=params["global"]["num_classes"],
+            embedding_size=params["global"]["embedding_size"],
+            vocab_size=len(
+                self.processor.vocabulary_),
+            embedding_matrix=None,
+            static=params["global"]["static"],
+            rnn_hidden_size=params["global"]["rnn_hidden_size"],
+            shared_num_layers=params["shared_model"]["num_layers"],
+            private_num_layers=params["private_model"]["num_layers"],
+            dynamic=params["global"]["dynamic"],
+            use_attention=params["global"]["use_attention"],
+            attention_size=params["global"]["attention_size"],
+            mlp_hidden_size=params["global"]["mlp_hidden_size"])
+        saver = tf.train.Saver()
+
+        target_embeddings = tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope="transfer-W")
+        print(target_embeddings) # -> []
+        target_rnn_vars = tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope="transfer-shared")       
+        print(target_rnn_vars) 
+        target_fc_vars = tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope="transfer-fully-connected-layer")
+
+        source_embeddings = tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope="W")
+        print(source_embeddings)
+        source_rnn_vars = tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope="shared")
+        source_fc_vars = tf.get_collection(
+            tf.GraphKeys.GLOBAL_VARIABLES, scope="fully-connected-layer")
+
+        ops = []
+        op = target_embeddings.assign(source_embeddings)
+        ops.append(op)
+        for target_rnn_var, source_rnn_var in zip(target_rnn_vars, source_rnn_vars):
+            op = target_rnn_var.assign(source_rnn_var)
+            ops.append(op)
+
+        target_fc_w, target_fc_b = target_fc_vars
+        source_fc_w, source_fc_b = source_fc_vars
+        target_fc_w.assign(source_fc_w[: 2*params["global"]["rnn_hidden_size"]])
+        target_fc_b.assign(source_fc_b)
+
+        init = tf.global_variables_initializer()
+
+        with tf.Session() as sess:
+            sess.run(init)
+            saver.restore(sess, model_path)            
+            sess.run(ops)
+
+
 
     def process(self, model_path, learning_rate, batch_size, epochs, evaluate_every):
         """
@@ -143,23 +215,23 @@ class EVAL(object):
             model_path (string): path stored the pre-trained adversarial network
             batch_size (int): batch_size in training process         
         """
-        embedding_matrix, fc_w, fc_b, shared_model_vars = self._params_initializer(
-            model_path)
+        embedding_matrix, fc_w, fc_b = self._params_initializer(model_path)
         instance = Transfer(
             sequence_length=params["global"]["sequence_length"],
             num_classes=params["global"]["num_classes"],
             embedding_size=params["global"]["embedding_size"],
-            vacab_size=len(embedding_matrix) /
-            params["global"]["embedding_size"],
+            vocab_size=len(
+                self.processor.vocabulary_),
             static=params["global"]["static"],
             rnn_hidden_size=params["global"]["rnn_hidden_size"],
-            num_layers=params["shared"]["num_layers"],
+            num_layers=params["shared_model"]["num_layers"],
             dynamic=params["global"]["dynamic"],
             use_attention=params["global"]["use_attention"],
             attention_size=params["global"]["attention_size"],
             embedding_matrix=embedding_matrix,
             fc_w=fc_w,
             fc_b=fc_b)
+        # self._rnn_initializer()
 
         global_step = tf.Variable(0, trainable=False)
         loss = instance.task_loss
@@ -174,12 +246,14 @@ class EVAL(object):
         tf.summary.scalar("loss", loss)
 
         merged_summary_op = tf.summary.merge_all()
-
+        saver = tf.train.Saver()
         init = tf.global_variables_initializer()
+        
         with tf.Session() as sess:
             sess.run(init)
-            sess.run(self._rnn_initializer(shared_model_vars))
-
+            #self._params_initializer(model_path)
+            self._rnn_initializer(sess)
+            
             train_summary_writer = tf.summary.FileWriter(
                 logdir='../temp/summary/transfer/train', graph=sess.graph)
             dev_summary_writer = tf.summary.FileWriter(
@@ -188,7 +262,9 @@ class EVAL(object):
             def train_step(batch_x, batch_y):
                 feed_dict = {
                     instance.input_x: batch_x,
-                    instance.input_y: batch_y}
+                    instance.input_y: batch_y,
+                    instance.input_keep_prob: 0.75,
+                    instance.output_keep_prob: 0.75}
                 step, summary, _, loss_, accuracy_ = sess.run(
                     [
                         global_step,
@@ -204,7 +280,9 @@ class EVAL(object):
             def dev_step(batch_x, batch_y):
                 feed_dict = {
                     instance.input_x: batch_x,
-                    instance.input_y: batch_y}
+                    instance.input_y: batch_y,
+                    instance.input_keep_prob: 1.0,
+                    instance.output_keep_prob: 1.0}
                 pred_, summary, step, loss_, accuracy_ = sess.run(
                     [
                         preds,
@@ -255,10 +333,24 @@ class EVAL(object):
 if __name__ == "__main__":
     transfer = EVAL()
     transfer.process(
-        model_path="../temp/model",
+        model_path="../temp/model/adversarial/model-500",
         learning_rate=0.0001,
         batch_size=128,
         epochs=100,
         evaluate_every=40
     )
     pass
+#"../temp/model/adversarial/model"
+
+
+"""
+model 1
+model 2
+assign op
+
+sess.run (init)
+
+init model 1
+
+sess.run (op)
+"""

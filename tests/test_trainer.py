@@ -10,6 +10,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow.contrib import learn
 from model.adversarial_model import Adversarial_Network
+from model.transfer_model import Transfer
 from utils.data_loader import load_data, batch_iter
 from itertools import chain
 
@@ -65,14 +66,14 @@ class EVAL(object):
                 use_attention=params["global"]["use_attention"],
                 attention_size=params["global"]["attention_size"],
                 mlp_hidden_size=params["global"]["mlp_hidden_size"])
-
+            
             global_step = tf.Variable(0, trainable=False)
             init = tf.global_variables_initializer()
 
             # discriminator_optimizer = tf.train.AdamOptimizer(learning_rate)
             # task_optimizer = tf.train.GradientDescentOptimizer(learning_rate)
             # shared_optimizer = tf.train.AdamOptimizer(learning_rate)
-            advloss = instance.adv_loss
+            # advloss = instance.adv_loss
             taskloss = instance.task_loss
 
             # discriminator_vars = tf.get_collection(
@@ -93,6 +94,8 @@ class EVAL(object):
                 tf.GraphKeys.TRAINABLE_VARIABLES, scope="fully-connected-layer")
             print(fc_vars) # extract the params in fully-connected layer succeed 
             
+            print("this is scope in instance")
+            print(instance.scope)
             with tf.Session() as sess:
                 sess.run(init)
                 
@@ -118,8 +121,8 @@ class EVAL(object):
                     and extract variable according to the specfic scope or name 
                     """
                     x, y = zip(*batch)
-                    al, tl, svs = sess.run([advloss, taskloss, shared_vars], feed_dict={instance.task: task, instance.input_x: x, instance.input_y: y})
-                    print(al)
+                    tl, svs = sess.run([taskloss, shared_vars], feed_dict={instance.task: task, instance.input_x: x, instance.input_y: y})
+                    # print(al)
                     print(tl)
                     print(svs)
                     break
@@ -132,10 +135,15 @@ if __name__ == "__main__":
     # https://stackoverflow.com/questions/35013080/tensorflow-how-to-get-all-variables-from-rnn-cell-basiclstm-rnn-cell-multirnn
     # 必须显示的将rnn的运行过程也定义在variable_scope中才可以进行下去
     # 而且就目前来看，只需要知道shared和disscriminator的variable_scope
+
+    # 如果目前有两个tensorflow model， 如何获取两个model中不同的scope
+
     eval = EVAL(params["global"]["sequence_length"])
+    
     eval.process(
         learning_rate=params["global"]["learning_rate"],
         batch_size=params["global"]["batch_size"],
         epochs=params["global"]["epochs"],
         evaluate_every=100
     )
+    
