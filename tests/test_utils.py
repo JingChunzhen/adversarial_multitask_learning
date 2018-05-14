@@ -429,6 +429,7 @@ def test_assign_variable():
     with tf.Session() as sess:
         sess.run(init)
         print(c)
+        print(type(c))
         sess.run(op1)
         print(sess.run(b))
         sess.run(op2)
