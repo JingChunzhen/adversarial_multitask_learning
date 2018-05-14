@@ -413,6 +413,28 @@ def test_random():
         print("hah")
     pass
 
+def test_assign_variable():
+    """
+    this test shows assign op can assign value from a tensorflow tensor from a graph
+    and from a python object 
+    """
+    a = tf.Variable(tf.random_uniform([5, 7], -1.0, 1.0), name="a")
+    b = tf.Variable(tf.random_uniform([5, 7], -1.0, 1.0), name="b")
+    c = np.random.rand(5, 7)
+
+    op1 = b.assign(c)
+    op2 = a.assign(b)
+
+    init = tf.global_variables_initializer()
+    with tf.Session() as sess:
+        sess.run(init)
+        print(c)
+        sess.run(op1)
+        print(sess.run(b))
+        sess.run(op2)
+        print(sess.run(a))
+            
+
 if __name__ == "__main__":
     # test_placeholder()
     # res = test_initialize()
@@ -431,4 +453,5 @@ if __name__ == "__main__":
     # test_get_collections_of_rnn()
     # test_variable_slice()
     # test_relu()
-    test_random()
+    # test_random()
+    test_assign_variable()
