@@ -73,10 +73,9 @@ class Transfer(object):
                 self.embedded_chars, seq_len, self.input_keep_prob, self.output_keep_prob, scope="transfer-shared", )
 
         with tf.name_scope("transfer-fully-connected-layer"):
-            w = tf.get_variable(shape=[rnn_hidden_size*2, num_classes],
-                                name='w')
-            b = tf.get_variable(shape=[num_classes],
-                                name='b')
+            w = tf.Variable(tf.truncated_normal(
+                [rnn_hidden_size*2, num_classes], stddev=0.1), name="w")
+            b = tf.Variable(tf.constant(0.1, shape=[num_classes]), name="b")
             scores = tf.nn.xw_plus_b(s, w, b)
 
         with tf.name_scope("loss"):
