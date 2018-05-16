@@ -121,8 +121,7 @@ def load_data_v2(task, train_or_test):
             polarities.append([1, 0] if int(line[0]) == 0 else [0, 1])
             review = line[1:].strip()
             reviews.append(review)
-    data.append(reviews)
-    label.append(polarities)
+    
     return reviews, polarities
 
 
@@ -134,7 +133,7 @@ def batch_iter_v2(data, batch_size, epochs, shuffle=True):
     data = np.array(data)
     data_size = len(data)
     num_batches_per_epoch = int((len(data) - 1) / batch_size) + 1
-    for epoch in range(num_epochs):
+    for epoch in range(epochs):
         # Shuffle the data at each epoch
         if shuffle:
             shuffle_indices = np.random.permutation(np.arange(data_size))

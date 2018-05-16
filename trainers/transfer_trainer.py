@@ -267,7 +267,7 @@ class EVAL(object):
 
 if __name__ == "__main__":
     transfer = EVAL(
-        target_task="book",
+        target_task="books",
         sequence_length=params["global"]["sequence_length"] 
     )
     transfer.process(
