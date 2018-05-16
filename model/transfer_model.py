@@ -24,16 +24,11 @@ class Transfer(object):
                  num_layers,
                  dynamic,
                  use_attention,
-                 attention_size,
-                 embedding_matrix,
-                 fc_w,
-                 fc_b):
+                 attention_size):
         """
-        using embedding_matrix, shared-model and fully-conneted params to initialize the transfer model 
-        Args:
-            embedding_matrix (list): embedding matrix of pre-trained adversarial model  
-            fc_w (list): fully connected weight of pre-trained model
-            fc_b (list): fully connected bias of pre-trained model         
+        transfer model contains embedding layer, rnn layer and fully-connected layer
+        and will all be initialized by the corresponding params of adversarial network
+        the rnn params will be initialized by the shared rnn model in adversarial network           
         """
         self.input_x = tf.placeholder(
             tf.int32, [None, sequence_length], name="x")
@@ -65,8 +60,7 @@ class Transfer(object):
             seq_len = tf.reduce_max(mask, axis=1)
 
         with tf.name_scope("rnn-processing"):
-            """
-            TODO
+            """            
             initialize the rnn model using pre-trained adversarial model 
             """
             s = self.rnn_model.process(

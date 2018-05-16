@@ -106,7 +106,50 @@ def batch_iter(corpus, label, batch_size, epochs, shuffle):
 
 # load data and batch_iter for transfer model
 
-def load_data_v2():
+def load_data_v2(task, train_or_test):
+    """
+    Args:
+        task (string): a target domain of transfer model 
+        train_or_test (string): can either be "train" or "test"
+    """
+    file_in = "../data/mtl-dataset/{}.task.{}".format(task, train_or_test)
+    reviews = []
+    polarities = []
+    with open(file_in, "r", encoding='ISO-8859-1') as f:
+        for line in f.readlines():
+            line = clean_str(line)
+            polarities.append([1, 0] if int(line[0]) == 0 else [0, 1])
+            review = line[1:].strip()
+            reviews.append(review)
+    data.append(reviews)
+    label.append(polarities)
+    return reviews, polarities
+
+
+def batch_iter_v2(data, batch_size, epochs, shuffle=True):
+    """
+    Return:
+        a batch size of a data 
+    """
+    data = np.array(data)
+    data_size = len(data)
+    num_batches_per_epoch = int((len(data) - 1) / batch_size) + 1
+    for epoch in range(num_epochs):
+        # Shuffle the data at each epoch
+        if shuffle:
+            shuffle_indices = np.random.permutation(np.arange(data_size))
+            shuffled_data = data[shuffle_indices]
+        else:
+            shuffled_data = data
+        for batch_num in range(num_batches_per_epoch):
+            start_index = batch_num * batch_size
+            end_index = min((batch_num + 1) * batch_size, data_size)
+            yield shuffled_data[start_index:end_index]
+
+# load data and batch_iter for transfer model (Twitter-Airline)
+
+
+def load_data_v3():
     '''    
     load data (Twitter Airlines)in transfer trainer num_classes can only be two            
     Returns:
@@ -131,7 +174,7 @@ def load_data_v2():
     return x, y
 
 
-def batch_iter_v2(data, batch_size, num_epochs, shuffle=True):
+def batch_iter_v3(data, batch_size, num_epochs, shuffle=True):
     """
     batch iteration in transfer trainer 
     """

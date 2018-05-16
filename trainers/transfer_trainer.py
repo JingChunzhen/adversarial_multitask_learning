@@ -21,31 +21,42 @@ class EVAL(object):
     """
     transfer learning using embeddings and shared model and fc layers in adversarial network    
     """
-
-    def __init__(self):
-        """data preparation 
+    
+    def __init__(self, target_task, sequence_length):
         """
-        raw_x, raw_y = load_data_v2()
-
+        data preparation 
+        """        
         try:
             self.processor = learn.preprocessing.VocabularyProcessor.restore(
                 "../temp/vocab")
-            self.processor.max_document_length = 800
-            raw_x = list(self.processor.transform(raw_x))
-
-            x, y = [], []
-            for tmp_x, tmp_y in zip(raw_x, raw_y):
+            self.processor.max_document_length = sequence_length
+            raw_data, raw_label = load_data_v2(target_task, "train")
+            self.train_data = []
+            self.train_label = []
+            
+            rd = list(self.processor.transform(raw_data))  # generator -> list
+            for tmp_x, tmp_y in zip(rd, raw_label):
                 tmp_x = tmp_x.tolist()
                 if np.sum(tmp_x) != 0:
-                    x.append(tmp_x)  # rid x with all 0s
-                    y.append(tmp_y)
+                    self.train_data.append(tmp_x)
+                    self.train_label.append(tmp_y)         
 
-            x_temp, self.x_test, y_temp, self.y_test = train_test_split(
-                x, y, test_size=params["transfer"]["test_size"])
-            self.x_train, self.x_validate, self.y_train, self.y_validate = train_test_split(
-                x_temp, y_temp, test_size=params["transfer"]["validate_size"])
+            del raw_data, raw_label
+            print("load training data complete!")
 
-            del x_temp, y_temp, raw_x, x, y
+            self.test_data = []
+            self.test_label = []        
+            
+            raw_data, raw_label = load_data_v2(target_task, "test")
+            rd = list(self.processor.transform(raw_data))  # generator -> list
+            for tmp_x, tmp_y in zip(rd, raw_label):
+                tmp_x = tmp_x.tolist()
+                if np.sum(tmp_x) != 0:
+                    self.test_data.append(tmp_x)
+                    self.test_label.append(tmp_y)         
+                    
+            del raw_data, raw_label
+            print("load test data complete!")
         except IOError as e:
             print("File error {}".format(e))
         self.source_embedding, self.source_shared_params, self.source_fc_params = self._get_source_vars(
@@ -141,9 +152,7 @@ class EVAL(object):
         Args:
             model_path (string): path stored the pre-trained adversarial network
             batch_size (int): batch_size in training process         
-        """
-        # source_embedding, source_shared_params, source_fc_params = self._get_source_vars(
-        #     model_path)
+        """        
         instance = Transfer(
             sequence_length=params["global"]["sequence_length"],
             num_classes=params["global"]["num_classes"],
@@ -155,10 +164,7 @@ class EVAL(object):
             num_layers=params["shared_model"]["num_layers"],
             dynamic=params["global"]["dynamic"],
             use_attention=params["global"]["use_attention"],
-            attention_size=params["global"]["attention_size"],
-            embedding_matrix=None,
-            fc_w=None,
-            fc_b=None)
+            attention_size=params["global"]["attention_size"])
 
         global_step = tf.Variable(0, trainable=False)
         loss = instance.task_loss
@@ -225,7 +231,7 @@ class EVAL(object):
                 dev_summary_writer.add_summary(summary, step)
                 return pred_, loss_, accuracy_
 
-            for batch in batch_iter_v2(list(zip(self.x_train, self.y_train)), batch_size, epochs):
+            for batch in batch_iter_v2(list(zip(self.train_data, self.train_label)), batch_size, epochs):
                 x_batch, y_batch = zip(*batch)
                 current_step, loss_, accuracy_ = train_step(
                     x_batch, y_batch)
@@ -242,7 +248,7 @@ class EVAL(object):
                     y_true = []
                     y_pred = []
 
-                    for batch in batch_iter_v2(list(zip(self.x_validate, self.y_validate)), 50, 1):
+                    for batch in batch_iter_v2(list(zip(self.test_data, self.test_label)), 50, 1):
                         if random.randint(0, 3) != 0:
                             continue
                         x_dev, y_dev = zip(*batch)
@@ -260,7 +266,10 @@ class EVAL(object):
 
 
 if __name__ == "__main__":
-    transfer = EVAL()
+    transfer = EVAL(
+        target_task="book",
+        sequence_length=params["global"]["sequence_length"] 
+    )
     transfer.process(
         model_path="../temp/model/adversarial/model-500",
         learning_rate=0.0001,
