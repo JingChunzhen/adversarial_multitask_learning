@@ -2,6 +2,7 @@ import re
 import os
 import pandas as pd
 import tensorflow as tf
+import numpy as np
 import yaml
 from tensorflow.contrib import learn
 
@@ -37,6 +38,8 @@ def statistic_task_sequence_length():
     """
 
     for task in params["task"]:
+        if task != "books": 
+            continue
         file_in = "../data/mtl-dataset/" + task + ".task.train"
         lengths = []
         review_nums = {}
@@ -221,5 +224,6 @@ def batch_iter(data, batch_size, epochs, shuffle):
 
 if __name__ == "__main__":
     #conver_to_csv()
-    vocabulary_generator()
+    # vocabulary_generator()
+    statistic_task_sequence_length()
     pass

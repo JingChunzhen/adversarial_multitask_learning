@@ -28,8 +28,7 @@ transfer:
   
 task:
  - apparel
- - baby
- - books
+ - baby 
  - camera_photo
  - dvd
  - electronics
@@ -47,7 +46,6 @@ task:
 optimum_length:
  - 265
  - 446
- - 735
  - 566
  - 764
  - 503

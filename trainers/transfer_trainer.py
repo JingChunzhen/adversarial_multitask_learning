@@ -249,8 +249,8 @@ class EVAL(object):
                     y_pred = []
 
                     for batch in batch_iter_v2(list(zip(self.test_data, self.test_label)), 50, 1):
-                        if random.randint(0, 3) != 0:
-                            continue
+                        # if random.randint(0, 3) != 0:
+                        #     continue
                         x_dev, y_dev = zip(*batch)
                         pred_, loss_, accuracy_ = dev_step(x_dev, y_dev)
                         accuracies.append(accuracy_)
